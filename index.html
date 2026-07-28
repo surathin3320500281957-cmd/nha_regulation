@@ -6,94 +6,128 @@
 <title>ทะเบียนข้อบังคับ การเคหะแห่งชาติ</title>
 <style>
   :root{
-    --ink:#1B2A4A; --ink-soft:#2E3E5C; --paper:#FAF7F2; --paper-raised:#FFFFFF;
-    --line:#E4DED2; --brass:#B08D57; --brass-soft:#E9DCC4; --slate:#5B6472;
-    --ok:#4C7A5E; --ok-bg:#E7EFE9; --pending:#B4762A; --pending-bg:#F6E9D8;
+    --bg:#F3F4F8; --card:#FFFFFF; --line:#E3E6ED; --ink:#1F2430; --ink-soft:#4B5468; --slate:#6B7280;
+    --blue:#2563EB; --blue-bg:#EAF0FE;
+    --purple:#7C3AED; --purple-bg:#F1EAFE;
+    --green:#16A34A; --green-bg:#E8F8EE;
+    --orange:#F59E0B; --orange-bg:#FEF3DD;
+    --red:#DC2626; --red-bg:#FCE9E9;
   }
   *{box-sizing:border-box;}
-  body{margin:0;font-family:'Sarabun','Noto Sans Thai','TH Sarabun New',sans-serif;background:var(--paper);color:var(--ink);-webkit-font-smoothing:antialiased;}
-  .topbar{background:var(--ink);color:var(--paper);padding:22px 28px 20px;border-bottom:4px solid var(--brass);}
-  .topbar .eyebrow{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--brass-soft);margin:0 0 4px;font-weight:600;}
-  .topbar h1{margin:0;font-size:22px;font-weight:700;letter-spacing:.01em;}
-  .topbar .sub{margin:6px 0 0;font-size:13.5px;color:#C8D0E0;}
-  .layout{display:grid;grid-template-columns:360px 1fr;gap:0;min-height:calc(100vh - 92px);}
+  body{margin:0;font-family:'Sarabun','Noto Sans Thai','TH Sarabun New',sans-serif;background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased;}
+  .topbar{background:linear-gradient(135deg,#2563EB,#4F46E5);color:#fff;padding:18px 24px;}
+  .topbar h1{margin:0;font-size:21px;font-weight:800;display:flex;align-items:center;gap:8px;}
+  .topbar .sub{margin:5px 0 0;font-size:13px;color:#DCE4FF;}
+
+  /* ===== Persistent stats + filter panel, right under header ===== */
+  .control-panel{background:var(--card);padding:16px 24px 14px;border-bottom:1px solid var(--line);}
+  .stats-row{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px;}
+  .stat-box{background:var(--card);border:1.5px solid var(--line);border-radius:10px;padding:10px 18px;min-width:96px;text-align:center;position:relative;}
+  .stat-box .num{font-size:24px;font-weight:800;line-height:1;}
+  .stat-box .lbl{font-size:11px;color:var(--slate);margin-top:4px;white-space:nowrap;}
+  .stat-box.blue{border-left:5px solid var(--blue);} .stat-box.blue .num{color:var(--blue);}
+  .stat-box.green{border-left:5px solid var(--green);} .stat-box.green .num{color:var(--green);}
+  .stat-box.orange{border-left:5px solid var(--orange);} .stat-box.orange .num{color:var(--orange);}
+  .stat-box.purple{border-left:5px solid var(--purple);} .stat-box.purple .num{color:var(--purple);}
+  .stat-box.red{border-left:5px solid var(--red);} .stat-box.red .num{color:var(--red);}
+
+  .search-clear-row{display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap;}
+  .search-wrap{position:relative;flex:1;min-width:220px;}
+  .search-wrap input{width:100%;padding:10px 14px 10px 36px;border:1.5px solid var(--line);border-radius:8px;font-size:14px;font-family:inherit;background:var(--bg);color:var(--ink);}
+  .search-wrap input:focus{outline:none;border-color:var(--blue);background:#fff;}
+  .search-wrap svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);opacity:.5;}
+  .clear-btn{border:1.5px solid var(--line);background:#fff;color:var(--ink-soft);border-radius:8px;padding:9px 16px;font-size:13.5px;font-family:inherit;cursor:pointer;white-space:nowrap;font-weight:600;}
+  .clear-btn:hover{border-color:var(--red);color:var(--red);}
+
+  .cat-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;}
+  .chip{font-size:12.5px;padding:6px 13px;border-radius:999px;border:1.5px solid var(--line);background:#fff;color:var(--slate);cursor:pointer;font-family:inherit;font-weight:600;transition:all .15s;}
+  .chip:hover{border-color:var(--blue);color:var(--blue);}
+  .chip.active{background:var(--blue);border-color:var(--blue);color:#fff;}
+
+  .active-filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center;min-height:20px;}
+  .active-filters .af-empty{font-size:12px;color:var(--slate);}
+  .filter-pill{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;padding:6px 8px 6px 14px;border-radius:999px;color:#fff;}
+  .filter-pill.p-search{background:var(--purple);}
+  .filter-pill.p-cat{background:var(--blue);}
+  .filter-pill .x{cursor:pointer;background:rgba(255,255,255,.25);border-radius:50%;width:18px;height:18px;display:inline-flex;align-items:center;justify-content:center;font-size:12px;line-height:1;}
+  .filter-pill .x:hover{background:rgba(255,255,255,.45);}
+
+  .layout{display:grid;grid-template-columns:360px 1fr;gap:0;min-height:calc(100vh - 230px);}
   @media (max-width: 860px){.layout{grid-template-columns:1fr;}}
-  .sidebar{border-right:1px solid var(--line);background:var(--paper-raised);padding:18px 16px 40px;overflow-y:auto;max-height:calc(100vh - 92px);}
-  .search-wrap{position:relative;margin-bottom:14px;}
-  .search-wrap input{width:100%;padding:11px 14px 11px 38px;border:1.5px solid var(--line);border-radius:8px;font-size:14px;font-family:inherit;background:var(--paper);color:var(--ink);}
-  .search-wrap input:focus{outline:none;border-color:var(--brass);background:#fff;}
-  .search-wrap svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);opacity:.5;}
-  .filter-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;}
-  .chip{font-size:12px;padding:5px 11px;border-radius:999px;border:1px solid var(--line);background:var(--paper);color:var(--slate);cursor:pointer;font-family:inherit;transition:all .15s;}
-  .chip:hover{border-color:var(--brass);color:var(--ink);}
-  .chip.active{background:var(--ink);border-color:var(--ink);color:#fff;}
-  .count-line{font-size:12px;color:var(--slate);margin:0 2px 10px;}
-  .reg-card{border:1px solid var(--line);border-left:3px solid var(--line);border-radius:8px;padding:11px 13px;margin-bottom:8px;cursor:pointer;background:var(--paper-raised);transition:border-color .15s, background .15s;}
-  .reg-card:hover{border-color:var(--brass);border-left-color:var(--brass);}
-  .reg-card.selected{border-color:var(--ink);border-left-color:var(--brass);background:#F1ECE1;}
+  .sidebar{border-right:1px solid var(--line);background:var(--card);padding:14px 16px 40px;overflow-y:auto;max-height:calc(100vh - 230px);}
+  .count-line{font-size:12px;color:var(--slate);margin:0 2px 10px;font-weight:600;}
+  .reg-card{border:1.5px solid var(--line);border-left:4px solid var(--line);border-radius:10px;padding:11px 13px;margin-bottom:8px;cursor:pointer;background:#fff;transition:all .15s;}
+  .reg-card:hover{border-color:var(--blue);border-left-color:var(--blue);box-shadow:0 2px 8px rgba(37,99,235,.08);}
+  .reg-card.selected{border-color:var(--blue);border-left-color:var(--purple);background:var(--blue-bg);}
   .reg-card .row1{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:4px;}
-  .reg-no{font-family:'Courier New',monospace;font-size:11px;color:var(--brass);font-weight:700;white-space:nowrap;}
-  .status-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;margin-top:5px;}
-  .status-dot.ready{background:var(--ok);}
-  .status-dot.pending{background:var(--pending);opacity:.55;}
-  .reg-title{font-size:13.5px;line-height:1.4;font-weight:600;color:var(--ink);}
+  .reg-no{font-family:'Courier New',monospace;font-size:11px;color:var(--purple);font-weight:800;white-space:nowrap;}
+  .status-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:5px;}
+  .status-dot.ready{background:var(--green);}
+  .status-dot.pending{background:var(--orange);}
+  .reg-title{font-size:13.5px;line-height:1.4;font-weight:700;color:var(--ink);}
   .reg-date{font-size:11.5px;color:var(--slate);margin-top:3px;}
-  .main{padding:28px 40px 60px;overflow-y:auto;max-height:calc(100vh - 92px);}
-  .empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;height:60vh;color:var(--slate);text-align:center;}
+  .main{padding:26px 36px 60px;overflow-y:auto;max-height:calc(100vh - 230px);}
+  .empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;height:50vh;color:var(--slate);text-align:center;}
   .empty-state .icon{font-size:38px;margin-bottom:12px;opacity:.35;}
-  .detail-head{border-bottom:2px solid var(--ink);padding-bottom:16px;margin-bottom:22px;}
+  .detail-head{border-bottom:3px solid var(--blue);padding-bottom:16px;margin-bottom:22px;}
   .detail-head .badge-row{display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap;}
-  .badge{font-size:11px;font-weight:700;padding:3px 10px;border-radius:999px;letter-spacing:.02em;}
-  .badge.ready{background:var(--ok-bg);color:var(--ok);}
-  .badge.pending{background:var(--pending-bg);color:var(--pending);}
-  .badge.chabap{background:var(--brass-soft);color:#7A5B27;font-family:'Courier New',monospace;}
-  .badge.cat{background:#EEF1F6;color:var(--ink-soft);}
+  .badge{font-size:11px;font-weight:800;padding:4px 11px;border-radius:999px;letter-spacing:.02em;}
+  .badge.ready{background:var(--green-bg);color:var(--green);}
+  .badge.pending{background:var(--orange-bg);color:var(--orange);}
+  .badge.chabap{background:var(--purple-bg);color:var(--purple);font-family:'Courier New',monospace;}
+  .badge.cat{background:var(--blue-bg);color:var(--blue);}
   .detail-head h2{margin:0 0 6px;font-size:22px;line-height:1.35;}
   .detail-meta{font-size:13px;color:var(--slate);}
+  .detail-meta a{color:var(--blue);font-weight:700;text-decoration:none;}
   .section-block{margin-bottom:26px;}
-  .section-block h3{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--brass);margin:0 0 10px;font-weight:700;}
+  .section-block h3{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--purple);margin:0 0 10px;font-weight:800;}
   .prose{font-size:14.5px;line-height:1.75;color:var(--ink-soft);}
-  table.authority-table{width:100%;border-collapse:collapse;font-size:13.5px;margin-top:4px;}
-  table.authority-table th{text-align:left;background:var(--ink);color:#fff;padding:9px 12px;font-weight:600;font-size:12.5px;}
+  table.authority-table{width:100%;border-collapse:collapse;font-size:13.5px;margin-top:4px;border-radius:8px;overflow:hidden;}
+  table.authority-table th{text-align:left;background:var(--blue);color:#fff;padding:9px 12px;font-weight:700;font-size:12.5px;}
   table.authority-table td{padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top;line-height:1.6;}
-  table.authority-table tr:nth-child(even) td{background:#F7F4EE;}
-  .committee-card{border:1px solid var(--line);border-radius:8px;padding:14px 16px;margin-bottom:10px;background:var(--paper-raised);}
-  .committee-card .name{font-weight:700;font-size:14px;margin-bottom:4px;}
+  table.authority-table tr:nth-child(even) td{background:#F7F8FC;}
+  .committee-card{border:1.5px solid var(--line);border-left:4px solid var(--green);border-radius:10px;padding:14px 16px;margin-bottom:10px;background:#fff;}
+  .committee-card .name{font-weight:800;font-size:14px;margin-bottom:4px;color:var(--green);}
   .committee-card ul{margin:6px 0 0;padding-left:18px;font-size:13.5px;color:var(--ink-soft);line-height:1.6;}
-  .sections-list{border:1px solid var(--line);border-radius:8px;overflow:hidden;}
+  .sections-list{border:1.5px solid var(--line);border-radius:10px;overflow:hidden;}
   .sec-item{border-bottom:1px solid var(--line);padding:11px 15px;}
   .sec-item:last-child{border-bottom:none;}
-  .sec-item .sec-no{font-family:'Courier New',monospace;font-size:12px;color:var(--brass);font-weight:700;margin-bottom:3px;}
+  .sec-item .sec-no{font-family:'Courier New',monospace;font-size:12px;color:var(--purple);font-weight:800;margin-bottom:3px;}
   .sec-item .sec-text{font-size:13.5px;line-height:1.65;color:var(--ink-soft);}
   .tag-row{display:flex;flex-wrap:wrap;gap:6px;}
-  .tag{font-size:11.5px;padding:4px 10px;background:#EEF1F6;border-radius:6px;color:var(--ink-soft);}
+  .tag{font-size:11.5px;padding:4px 11px;background:var(--purple-bg);border-radius:6px;color:var(--purple);font-weight:600;}
   .related-list{display:flex;flex-wrap:wrap;gap:8px;}
-  .related-chip{font-size:12.5px;padding:6px 12px;border:1px solid var(--brass);color:var(--brass);border-radius:999px;cursor:pointer;background:#fff;}
-  .related-chip:hover{background:var(--brass);color:#fff;}
-  .pending-note{border:1.5px dashed var(--pending);background:var(--pending-bg);border-radius:8px;padding:16px 18px;font-size:13.5px;color:#7A4E15;line-height:1.7;}
-  .stats-bar{display:flex;gap:18px;margin-bottom:22px;flex-wrap:wrap;}
-  .stat{background:var(--paper-raised);border:1px solid var(--line);border-radius:8px;padding:12px 18px;min-width:120px;}
-  .stat .num{font-size:22px;font-weight:700;color:var(--ink);font-family:'Courier New',monospace;}
-  .stat .lbl{font-size:11.5px;color:var(--slate);margin-top:2px;}
+  .related-chip{font-size:12.5px;padding:6px 13px;border:1.5px solid var(--blue);color:var(--blue);border-radius:999px;cursor:pointer;background:#fff;font-weight:600;}
+  .related-chip:hover{background:var(--blue);color:#fff;}
+  .pending-note{border:1.5px dashed var(--orange);background:var(--orange-bg);border-radius:10px;padding:16px 18px;font-size:13.5px;color:#7A4E15;line-height:1.7;}
   .loading-msg{padding:40px;text-align:center;color:var(--slate);font-size:14px;}
-  .error-msg{padding:16px 18px;background:#FBEAEA;border:1.5px solid #D98C8C;border-radius:8px;color:#8C2E2E;font-size:13.5px;line-height:1.6;}
+  .error-msg{padding:16px 18px;background:var(--red-bg);border:1.5px solid var(--red);border-radius:10px;color:var(--red);font-size:13.5px;line-height:1.6;}
 </style>
 </head>
 <body>
 
 <div class="topbar">
-  <p class="eyebrow">การเคหะแห่งชาติ · โฟลเดอร์ระเบียบ</p>
-  <h1>ทะเบียนข้อบังคับและระเบียบ</h1>
+  <h1>📋 ทะเบียนข้อบังคับและระเบียบ การเคหะแห่งชาติ</h1>
   <p class="sub">ค้นหา สรุปขอบเขต อำนาจ และหน้าที่ — แทนการเปิดอ่าน PDF ทีละไฟล์</p>
+</div>
+
+<div class="control-panel">
+  <div class="stats-row" id="statsRow"></div>
+
+  <div class="search-clear-row">
+    <div class="search-wrap">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+      <input id="searchInput" type="text" placeholder="ค้นหาชื่อเรื่อง เลขฉบับ...">
+    </div>
+    <button class="clear-btn" id="clearBtn">✕ ล้างตัวกรอง</button>
+  </div>
+
+  <div class="cat-row" id="categoryChips"></div>
+  <div class="active-filters" id="activeFilters"></div>
 </div>
 
 <div class="layout">
   <aside class="sidebar">
-    <div class="search-wrap">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5B6472" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
-      <input id="searchInput" type="text" placeholder="ค้นหาชื่อเรื่อง เลขฉบับ...">
-    </div>
-    <div class="filter-row" id="categoryChips"></div>
     <p class="count-line" id="countLine"></p>
     <div id="cardList"></div>
   </aside>
@@ -110,9 +144,9 @@ let activeCategory = "ทั้งหมด";
 let searchTerm = "";
 let selectedId = null;
 let categories = ["ทั้งหมด"];
+const CAT_COLORS = { "ที่ดิน/ทรัพย์สิน":"green", "บุคคล/พนักงาน":"orange", "การเงิน/บริหารทั่วไป":"purple", "ธรรมาภิบาล/บริหาร":"red" };
 
 // ---------- LOAD DATA ----------
-// อ่านข้อมูลทั้ง 41 เรื่องจากไฟล์ data.json (ต้องอยู่โฟลเดอร์เดียวกับ index.html นี้)
 fetch('data.json')
   .then(res => {
     if(!res.ok) throw new Error('HTTP ' + res.status);
@@ -121,9 +155,11 @@ fetch('data.json')
   .then(data => {
     ALL_ITEMS = data.items;
     categories = ["ทั้งหมด", ...new Set(ALL_ITEMS.flatMap(i => i.category))];
+    renderStats();
     renderChips();
+    renderActiveFilters();
     renderList();
-    renderInitialStats();
+    renderInitialState();
   })
   .catch(err => {
     document.getElementById('mainPanel').innerHTML =
@@ -133,7 +169,25 @@ fetch('data.json')
       (เช่น <code>python3 -m http.server</code>)</div>`;
   });
 
-// ---------- RENDER: SIDEBAR ----------
+// ---------- RENDER: STATS ----------
+function renderStats(){
+  const total = ALL_ITEMS.length;
+  const ready = ALL_ITEMS.filter(i=>i.hasDetail).length;
+  const pending = total - ready;
+  let html = `
+    <div class="stat-box blue"><div class="num">${total}</div><div class="lbl">รายการทั้งหมด</div></div>
+    <div class="stat-box green"><div class="num">${ready}</div><div class="lbl">สรุปละเอียดแล้ว</div></div>
+    <div class="stat-box orange"><div class="num">${pending}</div><div class="lbl">รอสรุปเพิ่ม</div></div>
+  `;
+  categories.filter(c=>c!=="ทั้งหมด").forEach(c=>{
+    const n = ALL_ITEMS.filter(i=>i.category.includes(c)).length;
+    const color = CAT_COLORS[c] || "purple";
+    html += `<div class="stat-box ${color}"><div class="num">${n}</div><div class="lbl">${c}</div></div>`;
+  });
+  document.getElementById('statsRow').innerHTML = html;
+}
+
+// ---------- RENDER: CATEGORY CHIPS ----------
 function renderChips(){
   const wrap = document.getElementById('categoryChips');
   wrap.innerHTML = categories.map(c =>
@@ -143,6 +197,33 @@ function renderChips(){
     el.addEventListener('click', ()=>{
       activeCategory = el.dataset.cat;
       renderChips();
+      renderActiveFilters();
+      renderList();
+    });
+  });
+}
+
+// ---------- RENDER: ACTIVE FILTER PILLS (removable) ----------
+function renderActiveFilters(){
+  const wrap = document.getElementById('activeFilters');
+  const pills = [];
+  if(searchTerm.trim()){
+    pills.push(`<span class="filter-pill p-search">ค้นหา: "${searchTerm}" <span class="x" data-clear="search">✕</span></span>`);
+  }
+  if(activeCategory !== "ทั้งหมด"){
+    pills.push(`<span class="filter-pill p-cat">หมวด: ${activeCategory} <span class="x" data-clear="cat">✕</span></span>`);
+  }
+  wrap.innerHTML = pills.length ? pills.join('') : `<span class="af-empty">ไม่มีตัวกรองที่ใช้งานอยู่</span>`;
+  wrap.querySelectorAll('.x').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      if(el.dataset.clear === 'search'){
+        searchTerm = '';
+        document.getElementById('searchInput').value = '';
+      } else if(el.dataset.clear === 'cat'){
+        activeCategory = 'ทั้งหมด';
+      }
+      renderChips();
+      renderActiveFilters();
       renderList();
     });
   });
@@ -196,7 +277,7 @@ function renderDetail(){
       </div>
       <h2>${item.title}</h2>
       <div class="detail-meta">ประกาศใช้ ${item.date} · แก้ไขเพิ่มเติม ${item.amendments}
-        ${item.source_url ? ` · <a href="${item.source_url}" target="_blank" rel="noopener" style="color:var(--brass);font-weight:600;text-decoration:none;">เปิดต้นฉบับ (Google Drive) ↗</a>` : ''}
+        ${item.source_url ? ` · <a href="${item.source_url}" target="_blank" rel="noopener">เปิดต้นฉบับ (Google Drive) ↗</a>` : ''}
       </div>
     </div>
   `;
@@ -314,20 +395,13 @@ function renderDetail(){
   });
 }
 
-// ---------- STATS ----------
-function renderInitialStats(){
+// ---------- INITIAL STATE (no selection) ----------
+function renderInitialState(){
   const main = document.getElementById('mainPanel');
-  const ready = ALL_ITEMS.filter(i=>i.hasDetail).length;
-  const pending = ALL_ITEMS.filter(i=>!i.hasDetail).length;
   main.innerHTML = `
-    <div class="stats-bar">
-      <div class="stat"><div class="num">${ALL_ITEMS.length}</div><div class="lbl">ระเบียบทั้งหมดในทะเบียน</div></div>
-      <div class="stat"><div class="num">${ready}</div><div class="lbl">สรุปละเอียดแล้ว</div></div>
-      <div class="stat"><div class="num">${pending}</div><div class="lbl">รอการสรุป</div></div>
-    </div>
-    <div class="empty-state" style="height:40vh;">
+    <div class="empty-state">
       <div class="icon">📋</div>
-      <div>เลือกระเบียบทางซ้ายเพื่อดูรายละเอียด<br><span style="font-size:12.5px;">หรือค้นหาด้วยชื่อเรื่อง/เลขฉบับ</span></div>
+      <div>เลือกระเบียบทางซ้ายเพื่อดูรายละเอียด<br><span style="font-size:12.5px;">หรือค้นหาด้วยชื่อเรื่อง/เลขฉบับด้านบน</span></div>
     </div>
   `;
 }
@@ -335,6 +409,15 @@ function renderInitialStats(){
 // ---------- EVENTS ----------
 document.getElementById('searchInput').addEventListener('input', (e)=>{
   searchTerm = e.target.value;
+  renderActiveFilters();
+  renderList();
+});
+document.getElementById('clearBtn').addEventListener('click', ()=>{
+  searchTerm = '';
+  activeCategory = 'ทั้งหมด';
+  document.getElementById('searchInput').value = '';
+  renderChips();
+  renderActiveFilters();
   renderList();
 });
 </script>
