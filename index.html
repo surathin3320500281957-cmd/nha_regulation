@@ -106,6 +106,34 @@
   .pending-note{border:1.5px dashed var(--orange);background:var(--orange-bg);border-radius:10px;padding:16px 18px;font-size:13.5px;color:#7A4E15;line-height:1.7;}
   .loading-msg{padding:40px;text-align:center;color:var(--slate);font-size:14px;}
   .error-msg{padding:16px 18px;background:var(--red-bg);border:1.5px solid var(--red);border-radius:10px;color:var(--red);font-size:13.5px;line-height:1.6;}
+
+  /* ===== Tabs ===== */
+  .tab-bar{display:flex;gap:4px;background:#1E2A78;padding:0 24px;}
+  .tab-btn{background:transparent;border:none;color:#C7D0F5;font-family:inherit;font-size:14px;font-weight:700;padding:12px 20px;cursor:pointer;border-bottom:3px solid transparent;transition:all .15s;}
+  .tab-btn:hover{color:#fff;}
+  .tab-btn.active{color:#fff;border-bottom-color:#fff;}
+  .view{display:none;}
+  .view.active{display:block;}
+
+  /* ===== Ask tab ===== */
+  .ask-wrap{max-width:880px;margin:0 auto;padding:28px 24px 60px;}
+  .ask-intro{background:var(--blue-bg);border:1.5px solid var(--blue);border-radius:10px;padding:14px 18px;font-size:13.5px;color:var(--ink-soft);line-height:1.7;margin-bottom:20px;}
+  .ask-input-row{display:flex;gap:10px;margin-bottom:8px;}
+  .ask-input-row textarea{flex:1;min-height:56px;padding:12px 14px;border:1.5px solid var(--line);border-radius:10px;font-size:14.5px;font-family:inherit;resize:vertical;}
+  .ask-input-row textarea:focus{outline:none;border-color:var(--blue);}
+  .ask-btn{background:var(--blue);color:#fff;border:none;border-radius:10px;padding:0 22px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;white-space:nowrap;}
+  .ask-btn:hover{background:#1D4ED8;}
+  .ask-examples{font-size:12px;color:var(--slate);margin-bottom:22px;}
+  .ask-examples span{color:var(--blue);cursor:pointer;text-decoration:underline;margin-right:10px;}
+  .ask-result-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px;}
+  .ask-result-head h3{margin:0;font-size:16px;}
+  .download-btn{background:var(--green);color:#fff;border:none;border-radius:8px;padding:9px 18px;font-size:13.5px;font-weight:700;font-family:inherit;cursor:pointer;}
+  .download-btn:hover{background:#128038;}
+  .download-btn:disabled{background:var(--line);color:var(--slate);cursor:not-allowed;}
+  .ask-result-card{background:#fff;border:1.5px solid var(--line);border-left:5px solid var(--blue);border-radius:12px;padding:20px 22px;margin-bottom:18px;}
+  .ask-result-card h4{margin:0 0 4px;font-size:17px;}
+  .ask-result-card .meta{font-size:12.5px;color:var(--slate);margin-bottom:14px;}
+  .match-tag{display:inline-block;font-size:11px;font-weight:700;background:var(--orange-bg);color:var(--orange);padding:2px 9px;border-radius:999px;margin-left:6px;}
 </style>
 </head>
 <body>
@@ -115,6 +143,12 @@
   <p class="sub">ค้นหา สรุปขอบเขต อำนาจ และหน้าที่ — แทนการเปิดอ่าน PDF ทีละไฟล์</p>
 </div>
 
+<div class="tab-bar">
+  <button class="tab-btn active" id="tabBrowseBtn">🗂️ เรียกดูระเบียบ</button>
+  <button class="tab-btn" id="tabAskBtn">💬 ถามคำถาม</button>
+</div>
+
+<div class="view active" id="viewBrowse">
 <div class="control-panel">
   <div class="stats-row" id="statsRow"></div>
 
@@ -139,6 +173,29 @@
   <main class="main" id="mainPanel">
     <div class="loading-msg">กำลังโหลดข้อมูล...</div>
   </main>
+</div>
+</div><!-- /viewBrowse -->
+
+<div class="view" id="viewAsk">
+  <div class="ask-wrap">
+    <div class="ask-intro">
+      พิมพ์คำถามหรือหัวข้อที่สนใจ (เช่น "ระเบียบเกี่ยวกับการจัดประโยชน์ที่ดิน") ระบบจะค้นทุกฟิลด์ของทั้ง 41 ฉบับ
+      (ชื่อเรื่อง ขอบเขต อำนาจ วิธีดำเนินการ เนื้อหารายข้อ คำสำคัญ) แล้วรวมฉบับที่เกี่ยวข้องมาแสดงเป็นรายงานเดียว
+      พร้อมดาวน์โหลดเก็บไว้อ่านได้ — <strong>หมายเหตุ:</strong> เป็นการค้นและรวมข้อมูลที่สรุปไว้แล้ว ไม่ใช่การให้ AI วิเคราะห์ใหม่
+    </div>
+    <div class="ask-input-row">
+      <textarea id="askInput" placeholder="เช่น ระเบียบเกี่ยวกับการจัดประโยชน์ที่ดิน, ระเบียบเรื่องวินัยพนักงาน, การมอบอำนาจ..."></textarea>
+      <button class="ask-btn" id="askBtn">🔍 ค้นหา</button>
+    </div>
+    <div class="ask-examples">
+      ลองดู:
+      <span data-q="การจัดประโยชน์ที่ดิน">การจัดประโยชน์ที่ดิน</span>
+      <span data-q="วินัยพนักงาน การลงโทษ">วินัยพนักงาน การลงโทษ</span>
+      <span data-q="การมอบอำนาจ">การมอบอำนาจ</span>
+      <span data-q="สวัสดิการ เงินช่วยเหลือ">สวัสดิการ เงินช่วยเหลือ</span>
+    </div>
+    <div id="askResults"></div>
+  </div>
 </div>
 
 <script>
@@ -435,6 +492,138 @@ document.getElementById('clearBtn').addEventListener('click', ()=>{
   renderChips();
   renderActiveFilters();
   renderList();
+});
+
+// ---------- TABS ----------
+const tabBrowseBtn = document.getElementById('tabBrowseBtn');
+const tabAskBtn = document.getElementById('tabAskBtn');
+const viewBrowse = document.getElementById('viewBrowse');
+const viewAsk = document.getElementById('viewAsk');
+tabBrowseBtn.addEventListener('click', ()=>{
+  tabBrowseBtn.classList.add('active'); tabAskBtn.classList.remove('active');
+  viewBrowse.classList.add('active'); viewAsk.classList.remove('active');
+});
+tabAskBtn.addEventListener('click', ()=>{
+  tabAskBtn.classList.add('active'); tabBrowseBtn.classList.remove('active');
+  viewAsk.classList.add('active'); viewBrowse.classList.remove('active');
+});
+
+// ---------- ASK TAB: multi-field search across all 41 regulations ----------
+let lastReportText = '';
+
+function buildSearchableText(item){
+  const parts = [item.title, item.chabap||'', item.category.join(' '), item.tags?item.tags.join(' '):''];
+  if(item.hasDetail){
+    parts.push(item.summary.scope||'');
+    parts.push(item.summary.methods||'');
+    (item.summary.authority||[]).forEach(a=>parts.push(a.holder+' '+a.limit));
+    (item.summary.committees||[]).forEach(c=>parts.push(c.name+' '+c.composition+' '+(c.duties||[]).join(' ')));
+    (item.sections||[]).forEach(s=>parts.push(s.no+' '+s.text));
+  }
+  return parts.join(' ').toLowerCase();
+}
+
+function scoreItem(item, keywords){
+  const hay = buildSearchableText(item);
+  let score = 0;
+  keywords.forEach(kw=>{
+    if(kw && hay.includes(kw)) score += (item.title.toLowerCase().includes(kw) ? 3 : 1);
+  });
+  return score;
+}
+
+function runAsk(){
+  const q = document.getElementById('askInput').value.trim();
+  const resultsEl = document.getElementById('askResults');
+  if(!q){
+    resultsEl.innerHTML = `<p style="color:var(--slate);font-size:13.5px;">พิมพ์คำถามหรือหัวข้อก่อนนะครับ</p>`;
+    return;
+  }
+  const keywords = q.toLowerCase().split(/\s+/).filter(k=>k.length>0);
+  const scored = ALL_ITEMS
+    .map(item => ({ item, score: scoreItem(item, keywords) }))
+    .filter(x => x.score > 0)
+    .sort((a,b) => b.score - a.score);
+
+  if(scored.length === 0){
+    resultsEl.innerHTML = `
+      <div class="ask-result-card" style="border-left-color:var(--orange);">
+        <h4>ไม่พบระเบียบที่เกี่ยวข้องกับ "${q}"</h4>
+        <p class="prose" style="margin:0;">ลองใช้คำอื่น หรือเปิดแท็บ "เรียกดูระเบียบ" เพื่อไล่ดูรายการทั้งหมด 41 ฉบับแทน</p>
+      </div>`;
+    document.getElementById('downloadReportBtn')?.remove();
+    lastReportText = '';
+    return;
+  }
+
+  let reportText = `รายงานผลการค้นหา: "${q}"\nพบ ${scored.length} ฉบับที่เกี่ยวข้อง\n${'='.repeat(50)}\n\n`;
+  let html = `
+    <div class="ask-result-head">
+      <h3>พบ ${scored.length} ฉบับที่เกี่ยวข้องกับ "${q}"</h3>
+      <button class="download-btn" id="downloadReportBtn">⬇ ดาวน์โหลดรายงาน (.md)</button>
+    </div>
+  `;
+
+  scored.forEach(({item, score})=>{
+    html += `<div class="ask-result-card">
+      <h4>${item.chabap?'ฉบับที่ '+item.chabap+' — ':''}${item.title} <span class="match-tag">ตรงกัน ${score} จุด</span></h4>
+      <div class="meta">ประกาศใช้ ${item.date} · ${item.category.join(', ')} ${item.source_url?`· <a href="${item.source_url}" target="_blank" rel="noopener" style="color:var(--blue);">เปิดต้นฉบับ ↗</a>`:''}</div>`;
+
+    reportText += `## ${item.chabap?'ฉบับที่ '+item.chabap+' — ':''}${item.title}\nประกาศใช้ ${item.date} | หมวด: ${item.category.join(', ')}\n`;
+    if(item.source_url) reportText += `ต้นฉบับ: ${item.source_url}\n`;
+
+    if(item.hasDetail){
+      html += `<p class="prose"><strong>ขอบเขต:</strong> ${item.summary.scope}</p>`;
+      reportText += `\nขอบเขต: ${item.summary.scope}\n`;
+
+      if(item.summary.authority && item.summary.authority.length){
+        html += `<table class="authority-table" style="margin-bottom:10px;"><thead><tr><th>ผู้มีอำนาจ</th><th>ขอบเขตอำนาจ</th><th>อ้างอิง</th></tr></thead><tbody>`;
+        reportText += `\nชั้นอำนาจอนุมัติ:\n`;
+        item.summary.authority.forEach(a=>{
+          html += `<tr><td><strong>${a.holder}</strong></td><td>${a.limit}</td><td>${a.note||''}</td></tr>`;
+          reportText += `- ${a.holder}: ${a.limit} (${a.note||''})\n`;
+        });
+        html += `</tbody></table>`;
+      }
+      if(item.summary.methods){
+        html += `<p class="prose"><strong>วิธีดำเนินการ:</strong> ${item.summary.methods}</p>`;
+        reportText += `\nวิธีดำเนินการ: ${item.summary.methods}\n`;
+      }
+    } else {
+      html += `<p class="prose" style="color:var(--orange);">ฉบับนี้ยังไม่ได้สรุปละเอียด มีเฉพาะข้อมูลจากสารบัญ</p>`;
+      reportText += `\n(ยังไม่ได้สรุปละเอียด)\n`;
+    }
+    html += `</div>`;
+    reportText += `\n${'-'.repeat(50)}\n\n`;
+  });
+
+  resultsEl.innerHTML = html;
+  lastReportText = reportText;
+  document.getElementById('downloadReportBtn').addEventListener('click', downloadReport);
+}
+
+function downloadReport(){
+  if(!lastReportText) return;
+  const blob = new Blob([lastReportText], {type: 'text/markdown;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'รายงานระเบียบ_' + new Date().toISOString().slice(0,10) + '.md';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+document.getElementById('askBtn').addEventListener('click', runAsk);
+document.getElementById('askInput').addEventListener('keydown', (e)=>{
+  if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); runAsk(); }
+});
+document.querySelectorAll('.ask-examples span').forEach(el=>{
+  el.addEventListener('click', ()=>{
+    document.getElementById('askInput').value = el.dataset.q;
+    runAsk();
+  });
 });
 </script>
 </body>
