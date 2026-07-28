@@ -195,7 +195,9 @@ function renderDetail(){
         ${item.category.map(c=>`<span class="badge cat">${c}</span>`).join('')}
       </div>
       <h2>${item.title}</h2>
-      <div class="detail-meta">ประกาศใช้ ${item.date} · แก้ไขเพิ่มเติม ${item.amendments}</div>
+      <div class="detail-meta">ประกาศใช้ ${item.date} · แก้ไขเพิ่มเติม ${item.amendments}
+        ${item.source_url ? ` · <a href="${item.source_url}" target="_blank" rel="noopener" style="color:var(--brass);font-weight:600;text-decoration:none;">เปิดต้นฉบับ (Google Drive) ↗</a>` : ''}
+      </div>
     </div>
   `;
 
