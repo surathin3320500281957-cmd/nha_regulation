@@ -22,7 +22,11 @@
   /* ===== Persistent stats + filter panel, right under header ===== */
   .control-panel{background:var(--card);padding:16px 24px 14px;border-bottom:1px solid var(--line);}
   .stats-row{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px;}
-  .stat-box{background:var(--card);border:1.5px solid var(--line);border-radius:10px;padding:10px 18px;min-width:96px;text-align:center;position:relative;}
+  .stat-box{background:var(--card);border:1.5px solid var(--line);border-radius:10px;padding:10px 18px;min-width:96px;text-align:center;position:relative;transition:all .15s;}
+  .stat-box.clickable{cursor:pointer;}
+  .stat-box.clickable:hover{transform:translateY(-2px);box-shadow:0 4px 10px rgba(0,0,0,.08);}
+  .stat-box.is-active{background:var(--ink,#1F2430);}
+  .stat-box.is-active .num, .stat-box.is-active .lbl{color:#fff !important;}
   .stat-box .num{font-size:24px;font-weight:800;line-height:1;}
   .stat-box .lbl{font-size:11px;color:var(--slate);margin-top:4px;white-space:nowrap;}
   .stat-box.blue{border-left:5px solid var(--blue);} .stat-box.blue .num{color:var(--blue);}
@@ -175,16 +179,25 @@ function renderStats(){
   const ready = ALL_ITEMS.filter(i=>i.hasDetail).length;
   const pending = total - ready;
   let html = `
-    <div class="stat-box blue"><div class="num">${total}</div><div class="lbl">รายการทั้งหมด</div></div>
+    <div class="stat-box blue clickable ${activeCategory==='ทั้งหมด'?'is-active':''}" data-cat="ทั้งหมด"><div class="num">${total}</div><div class="lbl">รายการทั้งหมด</div></div>
     <div class="stat-box green"><div class="num">${ready}</div><div class="lbl">สรุปละเอียดแล้ว</div></div>
     <div class="stat-box orange"><div class="num">${pending}</div><div class="lbl">รอสรุปเพิ่ม</div></div>
   `;
   categories.filter(c=>c!=="ทั้งหมด").forEach(c=>{
     const n = ALL_ITEMS.filter(i=>i.category.includes(c)).length;
     const color = CAT_COLORS[c] || "purple";
-    html += `<div class="stat-box ${color}"><div class="num">${n}</div><div class="lbl">${c}</div></div>`;
+    html += `<div class="stat-box ${color} clickable ${activeCategory===c?'is-active':''}" data-cat="${c}"><div class="num">${n}</div><div class="lbl">${c}</div></div>`;
   });
   document.getElementById('statsRow').innerHTML = html;
+  document.querySelectorAll('.stat-box.clickable').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      activeCategory = el.dataset.cat;
+      renderStats();
+      renderChips();
+      renderActiveFilters();
+      renderList();
+    });
+  });
 }
 
 // ---------- RENDER: CATEGORY CHIPS ----------
@@ -196,6 +209,7 @@ function renderChips(){
   wrap.querySelectorAll('.chip').forEach(el=>{
     el.addEventListener('click', ()=>{
       activeCategory = el.dataset.cat;
+      renderStats();
       renderChips();
       renderActiveFilters();
       renderList();
@@ -222,6 +236,7 @@ function renderActiveFilters(){
       } else if(el.dataset.clear === 'cat'){
         activeCategory = 'ทั้งหมด';
       }
+      renderStats();
       renderChips();
       renderActiveFilters();
       renderList();
@@ -416,6 +431,7 @@ document.getElementById('clearBtn').addEventListener('click', ()=>{
   searchTerm = '';
   activeCategory = 'ทั้งหมด';
   document.getElementById('searchInput').value = '';
+  renderStats();
   renderChips();
   renderActiveFilters();
   renderList();
