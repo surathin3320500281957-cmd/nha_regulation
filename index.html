@@ -640,7 +640,21 @@ function renderManualDetail(){
     </div>
   `;
 
-  if(item.sub && item.sub.length){
+  if(item.content){
+    if(item.content.overview){
+      html += `<div class="section-block"><h3>ภาพรวม</h3><p class="prose">${item.content.overview}</p></div>`;
+    }
+    if(item.content.steps && item.content.steps.length){
+      html += `<div class="section-block"><h3>รายละเอียด</h3><div class="sub-list">`;
+      item.content.steps.forEach(s=>{
+        html += `<div class="sub-item"><strong style="color:var(--ink);">${s.title}</strong><br>${s.detail}</div>`;
+      });
+      html += `</div></div>`;
+    }
+    if(item.content.contact || item.content.data_asof){
+      html += `<p class="prose" style="font-size:14px;color:var(--slate);">${item.content.contact||''}${item.content.contact && item.content.data_asof ? ' · ' : ''}${item.content.data_asof||''}</p>`;
+    }
+  } else if(item.sub && item.sub.length){
     html += `
       <div class="section-block">
         <h3>หัวข้อย่อย</h3>
@@ -661,6 +675,9 @@ function renderManualDetail(){
 
   if(item.note){
     html += `<div class="manual-note"><strong>หมายเหตุ:</strong> ${item.note}</div>`;
+  }
+  if(item.content && item.content.note_extra){
+    html += `<div class="manual-note"><strong>หมายเหตุเพิ่มเติม:</strong> ${item.content.note_extra}</div>`;
   }
 
   main.innerHTML = html;
