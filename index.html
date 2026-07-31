@@ -103,6 +103,24 @@
   .pending-note{border:1.5px dashed var(--orange);background:var(--orange-bg);border-radius:10px;padding:16px 18px;font-size:16px;color:#7A4E15;line-height:1.7;}
   .loading-msg{padding:40px;text-align:center;color:var(--slate);font-size:16px;}
   .error-msg{padding:16px 18px;background:var(--red-bg);border:1.5px solid var(--red);border-radius:10px;color:var(--red);font-size:16px;line-height:1.6;}
+
+  /* ===== Tabs ===== */
+  .tab-bar{display:flex;gap:4px;background:#1E2A78;padding:0 24px;}
+  .tab-btn{background:transparent;border:none;color:#C7D0F5;font-family:inherit;font-size:15px;font-weight:700;padding:12px 20px;cursor:pointer;border-bottom:3px solid transparent;transition:all .15s;}
+  .tab-btn:hover{color:#fff;}
+  .tab-btn.active{color:#fff;border-bottom-color:#fff;}
+  .view{display:none;}
+  .view.active{display:block;}
+
+  /* ===== Manual tab specifics ===== */
+  .chapter-badge{display:inline-block;font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;background:var(--purple-bg);color:var(--purple);margin-bottom:6px;}
+  .page-badge{font-family:'Courier New',monospace;font-size:12px;color:var(--slate);font-weight:700;}
+  .sub-list{border:1.5px solid var(--line);border-radius:10px;overflow:hidden;margin-top:4px;}
+  .sub-item{padding:9px 15px;border-bottom:1px solid var(--line);font-size:15px;color:var(--ink-soft);line-height:1.6;}
+  .sub-item:last-child{border-bottom:none;}
+  .manual-note{border:1.5px solid var(--blue);background:var(--blue-bg);border-radius:10px;padding:14px 18px;font-size:15px;color:var(--ink-soft);line-height:1.7;margin-top:10px;}
+  .xlink-btn{display:inline-flex;align-items:center;gap:6px;background:var(--green);color:#fff;border:none;border-radius:999px;padding:8px 16px;font-size:13.5px;font-weight:700;font-family:inherit;cursor:pointer;margin-top:8px;margin-right:8px;}
+  .xlink-btn:hover{background:#128038;}
 </style>
 </head>
 <body>
@@ -112,6 +130,12 @@
   <p class="sub">ค้นหา สรุปขอบเขต อำนาจ และหน้าที่ — แทนการเปิดอ่าน PDF ทีละไฟล์</p>
 </div>
 
+<div class="tab-bar">
+  <button class="tab-btn active" id="tabBrowseBtn">📋 ระเบียบและข้อบังคับ</button>
+  <button class="tab-btn" id="tabManualBtn">📘 คู่มือบริหารชุมชน</button>
+</div>
+
+<div class="view active" id="viewBrowse">
 <div class="control-panel">
   <div class="stats-row" id="statsRow"></div>
 
@@ -137,6 +161,35 @@
     <div class="loading-msg">กำลังโหลดข้อมูล...</div>
   </main>
 </div>
+</div><!-- /viewBrowse -->
+
+<div class="view" id="viewManual">
+<div class="control-panel">
+  <div class="stats-row" id="manualStatsRow"></div>
+
+  <div class="search-clear-row">
+    <div class="search-wrap">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+      <input id="manualSearchInput" type="text" placeholder="ค้นหาชื่อเรื่อง หมวด...">
+    </div>
+    <button class="clear-btn" id="manualClearBtn">✕ ล้างตัวกรอง</button>
+  </div>
+
+  <div class="cat-row" id="manualChapterChips"></div>
+  <div class="active-filters" id="manualActiveFilters"></div>
+</div>
+
+<div class="layout">
+  <aside class="sidebar">
+    <p class="count-line" id="manualCountLine"></p>
+    <div id="manualCardList"></div>
+  </aside>
+
+  <main class="main" id="manualMainPanel">
+    <div class="loading-msg">กำลังโหลดข้อมูลคู่มือ...</div>
+  </main>
+</div>
+</div><!-- /viewManual -->
 
 <script>
 // ---------- STATE ----------
@@ -437,6 +490,214 @@ document.getElementById('clearBtn').addEventListener('click', ()=>{
   renderChips();
   renderActiveFilters();
   renderList();
+});
+
+// ---------- TABS ----------
+const tabBrowseBtn = document.getElementById('tabBrowseBtn');
+const tabManualBtn = document.getElementById('tabManualBtn');
+const viewBrowse = document.getElementById('viewBrowse');
+const viewManual = document.getElementById('viewManual');
+let manualLoaded = false;
+
+tabBrowseBtn.addEventListener('click', ()=>{
+  tabBrowseBtn.classList.add('active'); tabManualBtn.classList.remove('active');
+  viewBrowse.classList.add('active'); viewManual.classList.remove('active');
+});
+tabManualBtn.addEventListener('click', ()=>{
+  tabManualBtn.classList.add('active'); tabBrowseBtn.classList.remove('active');
+  viewManual.classList.add('active'); viewBrowse.classList.remove('active');
+  if(!manualLoaded){ loadManual(); }
+});
+
+// ---------- MANUAL TAB: state ----------
+let MANUAL_ITEMS = [];
+let MANUAL_META = {};
+let manualActiveChapter = "ทั้งหมด";
+let manualSearchTerm = "";
+let manualSelectedId = null;
+let manualChapters = ["ทั้งหมด"];
+const CH_COLORS = ["blue","green","orange","purple","red","blue","green","purple"];
+
+function loadManual(){
+  fetch('manual.json')
+    .then(res => { if(!res.ok) throw new Error('HTTP ' + res.status); return res.json(); })
+    .then(data => {
+      MANUAL_META = data.meta;
+      MANUAL_ITEMS = data.items;
+      manualLoaded = true;
+      const chapterOrder = [...new Set(MANUAL_ITEMS.map(i=>i.chapter_title))];
+      manualChapters = ["ทั้งหมด", ...chapterOrder];
+      renderManualStats();
+      renderManualChips();
+      renderManualActiveFilters();
+      renderManualList();
+      renderManualInitialState();
+    })
+    .catch(err => {
+      document.getElementById('manualMainPanel').innerHTML =
+        `<div class="error-msg">โหลด manual.json ไม่สำเร็จ: ${err.message}<br>
+        ตรวจสอบว่าไฟล์ manual.json อยู่โฟลเดอร์เดียวกับ index.html</div>`;
+    });
+}
+
+function renderManualStats(){
+  const total = MANUAL_ITEMS.length;
+  const withXlink = MANUAL_ITEMS.filter(i=>i.related_regulation && i.related_regulation.length).length;
+  const withNote = MANUAL_ITEMS.filter(i=>i.note).length;
+  let html = `
+    <div class="stat-box blue"><div class="num">${total}</div><div class="lbl">ส่วน/หัวข้อทั้งหมด</div></div>
+    <div class="stat-box green"><div class="num">${withXlink}</div><div class="lbl">เชื่อมโยงกับระเบียบ</div></div>
+    <div class="stat-box orange"><div class="num">${withNote}</div><div class="lbl">มีหมายเหตุพิเศษ</div></div>
+    <div class="stat-box purple"><div class="num">${MANUAL_META.total_pages||'—'}</div><div class="lbl">หน้าทั้งหมดในเล่ม</div></div>
+  `;
+  document.getElementById('manualStatsRow').innerHTML = html;
+}
+
+function renderManualChips(){
+  const wrap = document.getElementById('manualChapterChips');
+  wrap.innerHTML = manualChapters.map(c =>
+    `<button class="chip ${c===manualActiveChapter?'active':''}" data-ch="${c}">${c}</button>`
+  ).join('');
+  wrap.querySelectorAll('.chip').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      manualActiveChapter = el.dataset.ch;
+      renderManualChips();
+      renderManualActiveFilters();
+      renderManualList();
+    });
+  });
+}
+
+function renderManualActiveFilters(){
+  const wrap = document.getElementById('manualActiveFilters');
+  const pills = [];
+  if(manualSearchTerm.trim()){
+    pills.push(`<span class="filter-pill p-search">ค้นหา: "${manualSearchTerm}" <span class="x" data-clear="search">✕</span></span>`);
+  }
+  if(manualActiveChapter !== "ทั้งหมด"){
+    pills.push(`<span class="filter-pill p-cat">หมวด: ${manualActiveChapter} <span class="x" data-clear="ch">✕</span></span>`);
+  }
+  wrap.innerHTML = pills.length ? pills.join('') : `<span class="af-empty">ไม่มีตัวกรองที่ใช้งานอยู่</span>`;
+  wrap.querySelectorAll('.x').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      if(el.dataset.clear === 'search'){
+        manualSearchTerm = '';
+        document.getElementById('manualSearchInput').value = '';
+      } else if(el.dataset.clear === 'ch'){
+        manualActiveChapter = 'ทั้งหมด';
+      }
+      renderManualChips();
+      renderManualActiveFilters();
+      renderManualList();
+    });
+  });
+}
+
+function manualFilteredItems(){
+  return MANUAL_ITEMS.filter(item=>{
+    const matchCh = manualActiveChapter === "ทั้งหมด" || item.chapter_title === manualActiveChapter;
+    const hay = (item.title + " " + item.chapter_title + " " + (item.sub?item.sub.join(" "):"")).toLowerCase();
+    const matchSearch = hay.includes(manualSearchTerm.toLowerCase());
+    return matchCh && matchSearch;
+  });
+}
+
+function renderManualList(){
+  const items = manualFilteredItems();
+  document.getElementById('manualCountLine').textContent = `พบ ${items.length} รายการ`;
+  const list = document.getElementById('manualCardList');
+  list.innerHTML = items.map(item => `
+    <div class="reg-card ${item.id===manualSelectedId?'selected':''}" data-id="${item.id}">
+      <div class="row1">
+        <span class="reg-no">หมวด ${item.chapter_no===99?'ผนวก':item.chapter_no} · ${item.section_no}</span>
+        <span class="page-badge">น.${item.page||'-'}</span>
+      </div>
+      <div class="reg-title">${item.title}</div>
+      <div class="reg-date">${item.chapter_title}</div>
+    </div>
+  `).join('');
+  list.querySelectorAll('.reg-card').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      manualSelectedId = el.dataset.id;
+      renderManualList();
+      renderManualDetail();
+    });
+  });
+}
+
+function renderManualDetail(){
+  const main = document.getElementById('manualMainPanel');
+  const item = MANUAL_ITEMS.find(i=>i.id===manualSelectedId);
+  if(!item) return;
+
+  let html = `
+    <div class="detail-head">
+      <div class="chapter-badge">${item.chapter_title} ${item.chapter_no!==99?'· ส่วนที่ '+item.section_no:''}</div>
+      <h2>${item.title}</h2>
+      <div class="detail-meta">หน้า ${item.page||'-'} จากทั้งหมด ${MANUAL_META.total_pages} หน้า
+        ${MANUAL_META.source_url ? ` · <a href="${MANUAL_META.source_url}" target="_blank" rel="noopener">เปิดต้นฉบับ (Google Drive) ↗</a>` : ''}
+      </div>
+    </div>
+  `;
+
+  if(item.sub && item.sub.length){
+    html += `
+      <div class="section-block">
+        <h3>หัวข้อย่อย</h3>
+        <div class="sub-list">
+          ${item.sub.map(s=>`<div class="sub-item">${s}</div>`).join('')}
+        </div>
+      </div>
+    `;
+  }
+
+  if(item.related_regulation && item.related_regulation.length){
+    html += `<div class="section-block"><h3>เชื่อมโยงกับข้อบังคับ/ระเบียบ</h3>`;
+    item.related_regulation.forEach(rid=>{
+      html += `<button class="xlink-btn" data-xlink="${rid}">📋 เปิดฉบับที่เกี่ยวข้องในทะเบียนข้อบังคับ →</button>`;
+    });
+    html += `</div>`;
+  }
+
+  if(item.note){
+    html += `<div class="manual-note"><strong>หมายเหตุ:</strong> ${item.note}</div>`;
+  }
+
+  main.innerHTML = html;
+  main.querySelectorAll('.xlink-btn').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const rid = el.dataset.xlink;
+      tabBrowseBtn.click();
+      selectedId = rid;
+      renderList();
+      renderDetail();
+      document.querySelector('#viewBrowse .main').scrollTop = 0;
+    });
+  });
+}
+
+function renderManualInitialState(){
+  const main = document.getElementById('manualMainPanel');
+  main.innerHTML = `
+    <div class="empty-state">
+      <div class="icon">📘</div>
+      <div>เลือกหัวข้อทางซ้ายเพื่อดูรายละเอียด<br><span style="font-size:14.5px;">คู่มือการปฏิบัติงานสายงานบริหารชุมชน ฉบับปรับปรุงปี 2566 (612 หน้า)</span></div>
+    </div>
+  `;
+}
+
+document.getElementById('manualSearchInput').addEventListener('input', (e)=>{
+  manualSearchTerm = e.target.value;
+  renderManualActiveFilters();
+  renderManualList();
+});
+document.getElementById('manualClearBtn').addEventListener('click', ()=>{
+  manualSearchTerm = '';
+  manualActiveChapter = 'ทั้งหมด';
+  document.getElementById('manualSearchInput').value = '';
+  renderManualChips();
+  renderManualActiveFilters();
+  renderManualList();
 });
 </script>
 </body>
