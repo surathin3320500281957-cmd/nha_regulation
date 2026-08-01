@@ -22,7 +22,11 @@
   /* ===== Persistent stats + filter panel, right under header ===== */
   .control-panel{background:var(--card);padding:16px 24px 14px;border-bottom:1px solid var(--line);}
   .stats-row{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px;}
-  .stat-box{background:var(--card);border:1.5px solid var(--line);border-radius:10px;padding:10px 18px;min-width:96px;text-align:center;position:relative;}
+  .stat-box{background:var(--card);border:1.5px solid var(--line);border-radius:10px;padding:10px 18px;min-width:96px;text-align:center;position:relative;transition:all .15s;}
+  .stat-box.clickable{cursor:pointer;}
+  .stat-box.clickable:hover{transform:translateY(-2px);box-shadow:0 4px 10px rgba(0,0,0,.08);}
+  .stat-box.is-active{background:var(--ink);}
+  .stat-box.is-active .num, .stat-box.is-active .lbl{color:#fff !important;}
   .stat-box .num{font-size:30px;font-weight:800;line-height:1;}
   .stat-box .lbl{font-size:15px;color:var(--slate);margin-top:4px;white-space:nowrap;}
   .stat-box.blue{border-left:5px solid var(--blue);} .stat-box.blue .num{color:var(--blue);}
@@ -516,6 +520,7 @@ let manualActiveChapter = "ทั้งหมด";
 let manualSearchTerm = "";
 let manualSelectedId = null;
 let manualChapters = ["ทั้งหมด"];
+let manualSpecialFilter = "none"; // 'none' | 'linked' | 'notes'
 const CH_COLORS = ["blue","green","orange","purple","red","blue","green","purple"];
 
 function loadManual(){
@@ -540,17 +545,33 @@ function loadManual(){
     });
 }
 
+function manualHasNote(item){
+  return !!(item.note || (item.content && item.content.note_extra));
+}
+function manualHasLink(item){
+  return !!(item.related_regulation && item.related_regulation.length);
+}
+
 function renderManualStats(){
   const total = MANUAL_ITEMS.length;
-  const withXlink = MANUAL_ITEMS.filter(i=>i.related_regulation && i.related_regulation.length).length;
-  const withNote = MANUAL_ITEMS.filter(i=>i.note).length;
+  const withXlink = MANUAL_ITEMS.filter(manualHasLink).length;
+  const withNote = MANUAL_ITEMS.filter(manualHasNote).length;
   let html = `
     <div class="stat-box blue"><div class="num">${total}</div><div class="lbl">ส่วน/หัวข้อทั้งหมด</div></div>
-    <div class="stat-box green"><div class="num">${withXlink}</div><div class="lbl">เชื่อมโยงกับระเบียบ</div></div>
-    <div class="stat-box orange"><div class="num">${withNote}</div><div class="lbl">มีหมายเหตุพิเศษ</div></div>
+    <div class="stat-box green clickable ${manualSpecialFilter==='linked'?'is-active':''}" data-special="linked"><div class="num">${withXlink}</div><div class="lbl">🔗 เชื่อมโยงกับระเบียบ</div></div>
+    <div class="stat-box orange clickable ${manualSpecialFilter==='notes'?'is-active':''}" data-special="notes"><div class="num">${withNote}</div><div class="lbl">📌 มีหมายเหตุพิเศษ</div></div>
     <div class="stat-box purple"><div class="num">${MANUAL_META.total_pages||'—'}</div><div class="lbl">หน้าทั้งหมดในเล่ม</div></div>
   `;
   document.getElementById('manualStatsRow').innerHTML = html;
+  document.querySelectorAll('#manualStatsRow .stat-box.clickable').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const val = el.dataset.special;
+      manualSpecialFilter = (manualSpecialFilter === val) ? 'none' : val;
+      renderManualStats();
+      renderManualActiveFilters();
+      renderManualList();
+    });
+  });
 }
 
 function renderManualChips(){
@@ -577,6 +598,12 @@ function renderManualActiveFilters(){
   if(manualActiveChapter !== "ทั้งหมด"){
     pills.push(`<span class="filter-pill p-cat">หมวด: ${manualActiveChapter} <span class="x" data-clear="ch">✕</span></span>`);
   }
+  if(manualSpecialFilter === 'linked'){
+    pills.push(`<span class="filter-pill" style="background:var(--green);">🔗 เฉพาะที่เชื่อมโยงกับระเบียบ <span class="x" data-clear="special">✕</span></span>`);
+  }
+  if(manualSpecialFilter === 'notes'){
+    pills.push(`<span class="filter-pill" style="background:var(--orange);">📌 เฉพาะที่มีหมายเหตุพิเศษ <span class="x" data-clear="special">✕</span></span>`);
+  }
   wrap.innerHTML = pills.length ? pills.join('') : `<span class="af-empty">ไม่มีตัวกรองที่ใช้งานอยู่</span>`;
   wrap.querySelectorAll('.x').forEach(el=>{
     el.addEventListener('click', ()=>{
@@ -585,7 +612,10 @@ function renderManualActiveFilters(){
         document.getElementById('manualSearchInput').value = '';
       } else if(el.dataset.clear === 'ch'){
         manualActiveChapter = 'ทั้งหมด';
+      } else if(el.dataset.clear === 'special'){
+        manualSpecialFilter = 'none';
       }
+      renderManualStats();
       renderManualChips();
       renderManualActiveFilters();
       renderManualList();
@@ -598,7 +628,10 @@ function manualFilteredItems(){
     const matchCh = manualActiveChapter === "ทั้งหมด" || item.chapter_title === manualActiveChapter;
     const hay = (item.title + " " + item.chapter_title + " " + (item.sub?item.sub.join(" "):"")).toLowerCase();
     const matchSearch = hay.includes(manualSearchTerm.toLowerCase());
-    return matchCh && matchSearch;
+    const matchSpecial = manualSpecialFilter === 'none'
+      || (manualSpecialFilter === 'linked' && manualHasLink(item))
+      || (manualSpecialFilter === 'notes' && manualHasNote(item));
+    return matchCh && matchSearch && matchSpecial;
   });
 }
 
@@ -613,7 +646,13 @@ function renderManualList(){
         <span class="page-badge">น.${item.page||'-'}</span>
       </div>
       <div class="reg-title">${item.title}</div>
-      <div class="reg-date">${item.chapter_title}</div>
+      <div class="row1" style="margin-top:5px;">
+        <span class="reg-date">${item.chapter_title}</span>
+        <span style="display:flex;gap:4px;">
+          ${manualHasLink(item) ? '<span title="เชื่อมโยงกับระเบียบ" style="font-size:13px;">🔗</span>' : ''}
+          ${manualHasNote(item) ? '<span title="มีหมายเหตุพิเศษ" style="font-size:13px;">📌</span>' : ''}
+        </span>
+      </div>
     </div>
   `).join('');
   list.querySelectorAll('.reg-card').forEach(el=>{
@@ -711,7 +750,9 @@ document.getElementById('manualSearchInput').addEventListener('input', (e)=>{
 document.getElementById('manualClearBtn').addEventListener('click', ()=>{
   manualSearchTerm = '';
   manualActiveChapter = 'ทั้งหมด';
+  manualSpecialFilter = 'none';
   document.getElementById('manualSearchInput').value = '';
+  renderManualStats();
   renderManualChips();
   renderManualActiveFilters();
   renderManualList();
