@@ -819,6 +819,8 @@ matrixBtn.addEventListener('click', ()=>{
   }
 });
 
+let matrixSortMode = 'rank'; // 'rank' | 'category' | 'holder'
+
 function renderMatrixView(){
   const rows = [];
   MANUAL_ITEMS.forEach(item=>{
@@ -847,19 +849,34 @@ function renderMatrixView(){
     if(h.includes('หัวหน้าสำนักงาน')) return 1;
     return 0;
   };
-  rows.sort((a,b)=> rankOf(a.holder) - rankOf(b.holder));
+
+  if(matrixSortMode === 'category'){
+    rows.sort((a,b)=> a.category.localeCompare(b.category, 'th') || rankOf(a.holder) - rankOf(b.holder));
+  } else if(matrixSortMode === 'holder'){
+    rows.sort((a,b)=> a.holder.localeCompare(b.holder, 'th') || a.category.localeCompare(b.category, 'th'));
+  } else {
+    rows.sort((a,b)=> rankOf(a.holder) - rankOf(b.holder));
+  }
+
+  const sortLabel = { rank: 'ระดับตำแหน่ง (ต่ำ→สูง)', category: 'ประเภท (ก-ฮ)', holder: 'ผู้มีอำนาจ (ก-ฮ)' }[matrixSortMode];
 
   let html = `
     <div class="matrix-export-row">
       <button class="export-btn excel" id="exportExcelBtn">📊 ดาวน์โหลด Excel (.xlsx)</button>
       <button class="export-btn pdf" id="exportPdfBtn">📄 ดาวน์โหลด PDF</button>
     </div>
-    <div class="ask-result-head" style="margin-bottom:18px;">
+    <div class="ask-result-head" style="margin-bottom:12px;">
       <h3 style="font-size:20px;">⚖️ ตารางอำนาจอนุมัติรวมทั้งเล่ม</h3>
+    </div>
+    <div class="cat-row" style="margin-bottom:14px;">
+      <span style="font-size:14px;color:var(--slate);align-self:center;margin-right:4px;">เรียงตาม:</span>
+      <button class="chip ${matrixSortMode==='rank'?'active':''}" data-sort="rank">ระดับตำแหน่ง</button>
+      <button class="chip ${matrixSortMode==='category'?'active':''}" data-sort="category">ประเภท</button>
+      <button class="chip ${matrixSortMode==='holder'?'active':''}" data-sort="holder">ผู้มีอำนาจ</button>
     </div>
     <p class="prose" style="margin-bottom:18px;">
       รวบรวมจากทุกหัวข้อในคู่มือที่มีข้อมูลอำนาจอนุมัติชัดเจน (${new Set(rows.map(r=>r.id)).size} หัวข้อ, ${rows.length} รายการ)
-      เรียงจากระดับตำแหน่งต่ำไปสูง — คลิกแถวเพื่อเปิดหัวข้อต้นทางดูรายละเอียดเพิ่มเติม
+      — กำลังเรียงตาม<strong>${sortLabel}</strong> — คลิกแถวเพื่อเปิดหัวข้อต้นทางดูรายละเอียดเพิ่มเติม
     </p>
     <table class="authority-table" style="font-size:15.5px;">
       <thead><tr>
@@ -888,6 +905,12 @@ function renderMatrixView(){
   `;
   matrixView.innerHTML = html;
   window.__matrixRows = rows; // store for export functions
+  matrixView.querySelectorAll('.cat-row .chip').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      matrixSortMode = el.dataset.sort;
+      renderMatrixView();
+    });
+  });
   matrixView.querySelectorAll('.matrix-row').forEach(el=>{
     el.addEventListener('click', ()=>{
       matrixViewOn = false;
