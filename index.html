@@ -863,7 +863,7 @@ function renderMatrixView(){
   let html = `
     <div class="matrix-export-row">
       <button class="export-btn excel" id="exportExcelBtn">📊 ดาวน์โหลด Excel (.xlsx)</button>
-      <button class="export-btn pdf" id="exportPdfBtn">📄 ดาวน์โหลด PDF</button>
+      <button class="export-btn pdf" id="exportPdfBtn">🖨️ พิมพ์ / บันทึกเป็น PDF</button>
     </div>
     <div class="ask-result-head" style="margin-bottom:12px;">
       <h3 style="font-size:20px;">⚖️ ตารางอำนาจอนุมัติรวมทั้งเล่ม</h3>
@@ -881,8 +881,8 @@ function renderMatrixView(){
     <table class="authority-table" style="font-size:15.5px;">
       <thead><tr>
         <th style="width:12%">อ้างอิง</th>
-        <th style="width:22%">ผู้มีอำนาจ</th>
         <th style="width:18%">ประเภท</th>
+        <th style="width:22%">ผู้มีอำนาจ</th>
         <th style="width:30%">วงเงิน/ขอบเขต</th>
         <th style="width:18%">มาจากหัวข้อ</th>
       </tr></thead>
@@ -890,8 +890,8 @@ function renderMatrixView(){
         ${rows.map(r=>`
           <tr class="matrix-row" data-id="${r.id}" style="cursor:pointer;">
             <td><span class="reg-no">${r.source}</span></td>
-            <td><strong>${r.holder}</strong></td>
             <td>${r.category}</td>
+            <td><strong>${r.holder}</strong></td>
             <td>${r.limit}${r.note?' <span style="color:var(--slate);font-size:13px;">('+r.note+')</span>':''}</td>
             <td style="font-size:13.5px;color:var(--blue);">${r.title.length>30?r.title.slice(0,30)+'…':r.title}</td>
           </tr>
@@ -931,13 +931,13 @@ function renderMatrixView(){
 function exportMatrixExcel(){
   const rows = window.__matrixRows || [];
   const sheetData = [
-    ['อ้างอิง', 'ผู้มีอำนาจ', 'ประเภท', 'วงเงิน/ขอบเขต', 'หมายเหตุ', 'มาจากหัวข้อ']
+    ['อ้างอิง', 'ประเภท', 'ผู้มีอำนาจ', 'วงเงิน/ขอบเขต', 'หมายเหตุ', 'มาจากหัวข้อ']
   ];
   rows.forEach(r=>{
-    sheetData.push([r.source, r.holder, r.category, r.limit, r.note, r.title]);
+    sheetData.push([r.source, r.category, r.holder, r.limit, r.note, r.title]);
   });
   const ws = XLSX.utils.aoa_to_sheet(sheetData);
-  ws['!cols'] = [{wch:10},{wch:35},{wch:25},{wch:40},{wch:20},{wch:40}];
+  ws['!cols'] = [{wch:10},{wch:25},{wch:35},{wch:40},{wch:20},{wch:40}];
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'ตารางอำนาจอนุมัติ');
   XLSX.writeFile(wb, 'ตารางอำนาจอนุมัติรวม_คู่มือบริหารชุมชน.xlsx');
