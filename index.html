@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ทะเบียนข้อบังคับ การเคหะแห่งชาติ</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root{
     --bg:#F3F4F8; --card:#FFFFFF; --line:#E3E6ED; --ink:#1F2430; --ink-soft:#4B5468; --slate:#6B7280;
@@ -108,6 +109,20 @@
   .loading-msg{padding:40px;text-align:center;color:var(--slate);font-size:18px;}
   .error-msg{padding:16px 18px;background:var(--red-bg);border:1.5px solid var(--red);border-radius:10px;color:var(--red);font-size:18px;line-height:1.6;}
 
+  @media print{
+    body *{visibility:hidden;}
+    #matrixView, #matrixView *{visibility:visible;}
+    #matrixView{position:absolute;top:0;left:0;width:100%;padding:10px !important;}
+    .matrix-export-row{display:none !important;}
+    .topbar, .tab-bar, .control-panel{display:none !important;}
+  }
+  .matrix-export-row{display:flex;gap:10px;margin-bottom:16px;}
+  .export-btn{display:inline-flex;align-items:center;gap:6px;border:none;border-radius:8px;padding:9px 18px;font-size:14.5px;font-weight:700;font-family:inherit;cursor:pointer;color:#fff;}
+  .export-btn.excel{background:#1D6F42;}
+  .export-btn.excel:hover{background:#155230;}
+  .export-btn.pdf{background:#C0392B;}
+  .export-btn.pdf:hover{background:#96291F;}
+
   /* ===== Tabs ===== */
   .tab-bar{display:flex;gap:4px;background:#1E2A78;padding:0 24px;}
   .tab-btn{background:transparent;border:none;color:#C7D0F5;font-family:inherit;font-size:17px;font-weight:700;padding:12px 20px;cursor:pointer;border-bottom:3px solid transparent;transition:all .15s;}
@@ -177,13 +192,14 @@
       <input id="manualSearchInput" type="text" placeholder="ค้นหาชื่อเรื่อง หมวด...">
     </div>
     <button class="clear-btn" id="manualClearBtn">✕ ล้างตัวกรอง</button>
+    <button class="clear-btn" id="matrixToggleBtn" style="background:var(--purple);color:#fff;border-color:var(--purple);">⚖️ ตารางอำนาจอนุมัติรวม</button>
   </div>
 
   <div class="cat-row" id="manualChapterChips"></div>
   <div class="active-filters" id="manualActiveFilters"></div>
 </div>
 
-<div class="layout">
+<div class="layout" id="manualNormalLayout">
   <aside class="sidebar">
     <p class="count-line" id="manualCountLine"></p>
     <div id="manualCardList"></div>
@@ -192,6 +208,9 @@
   <main class="main" id="manualMainPanel">
     <div class="loading-msg">กำลังโหลดข้อมูลคู่มือ...</div>
   </main>
+</div>
+
+<div id="matrixView" style="display:none;padding:26px 36px 60px;">
 </div>
 </div><!-- /viewManual -->
 
@@ -635,6 +654,10 @@ function manualFilteredItems(){
   });
 }
 
+function manualHasAuthority(item){
+  return !!(item.authority && item.authority.length);
+}
+
 function renderManualList(){
   const items = manualFilteredItems();
   document.getElementById('manualCountLine').textContent = `พบ ${items.length} รายการ`;
@@ -649,6 +672,7 @@ function renderManualList(){
       <div class="row1" style="margin-top:5px;">
         <span class="reg-date">${item.chapter_title}</span>
         <span style="display:flex;gap:4px;">
+          ${manualHasAuthority(item) ? '<span title="มีตารางอำนาจอนุมัติ" style="font-size:13px;">⚖️</span>' : ''}
           ${manualHasLink(item) ? '<span title="เชื่อมโยงกับระเบียบ" style="font-size:13px;">🔗</span>' : ''}
           ${manualHasNote(item) ? '<span title="มีหมายเหตุพิเศษ" style="font-size:13px;">📌</span>' : ''}
         </span>
@@ -682,6 +706,21 @@ function renderManualDetail(){
   if(item.content){
     if(item.content.overview){
       html += `<div class="section-block"><h3>ภาพรวม</h3><p class="prose">${item.content.overview}</p></div>`;
+    }
+    if(item.authority && item.authority.length){
+      html += `
+        <div class="section-block">
+          <h3>ชั้นอำนาจอนุมัติ</h3>
+          <table class="authority-table">
+            <thead><tr><th style="width:32%">ผู้มีอำนาจ</th><th style="width:24%">ประเภท</th><th style="width:44%">วงเงิน/ขอบเขต</th></tr></thead>
+            <tbody>
+              ${item.authority.map(a=>`
+                <tr><td><strong>${a.holder}</strong></td><td>${a.category}</td><td>${a.limit}${a.note?' <span style="color:var(--slate);font-size:13px;">('+a.note+')</span>':''}</td></tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
     }
     if(item.content.steps && item.content.steps.length){
       html += `<div class="section-block"><h3>รายละเอียด</h3><div class="sub-list">`;
@@ -757,6 +796,133 @@ document.getElementById('manualClearBtn').addEventListener('click', ()=>{
   renderManualActiveFilters();
   renderManualList();
 });
+
+// ---------- MASTER AUTHORITY MATRIX ----------
+let matrixViewOn = false;
+const matrixBtn = document.getElementById('matrixToggleBtn');
+const normalLayout = document.getElementById('manualNormalLayout');
+const matrixView = document.getElementById('matrixView');
+
+matrixBtn.addEventListener('click', ()=>{
+  matrixViewOn = !matrixViewOn;
+  if(matrixViewOn){
+    normalLayout.style.display = 'none';
+    matrixView.style.display = 'block';
+    matrixBtn.style.background = 'var(--ink)';
+    matrixBtn.textContent = '✕ ปิดตารางอำนาจอนุมัติรวม';
+    renderMatrixView();
+  } else {
+    normalLayout.style.display = 'grid';
+    matrixView.style.display = 'none';
+    matrixBtn.style.background = 'var(--purple)';
+    matrixBtn.textContent = '⚖️ ตารางอำนาจอนุมัติรวม';
+  }
+});
+
+function renderMatrixView(){
+  const rows = [];
+  MANUAL_ITEMS.forEach(item=>{
+    if(item.authority && item.authority.length){
+      item.authority.forEach(a=>{
+        rows.push({
+          source: (item.chapter_no===99?'ผนวก ':'หมวด '+item.chapter_no+'.') + item.section_no,
+          title: item.title,
+          id: item.id,
+          holder: a.holder,
+          category: a.category,
+          limit: a.limit,
+          note: a.note||''
+        });
+      });
+    }
+  });
+
+  // sort by a rough authority-level rank if detectable in holder text, else keep source order
+  const rankOf = (h)=>{
+    if(h.includes('ผู้ช่วยผู้ว่าการ')) return 5;
+    if(h.includes('รองผู้ว่าการ')) return 4;
+    if(h.includes('ผู้ว่าการ')) return 6;
+    if(h.includes('ผู้อำนวยการฝ่าย')) return 3;
+    if(h.includes('ผู้อำนวยการกอง')) return 2;
+    if(h.includes('หัวหน้าสำนักงาน')) return 1;
+    return 0;
+  };
+  rows.sort((a,b)=> rankOf(a.holder) - rankOf(b.holder));
+
+  let html = `
+    <div class="matrix-export-row">
+      <button class="export-btn excel" id="exportExcelBtn">📊 ดาวน์โหลด Excel (.xlsx)</button>
+      <button class="export-btn pdf" id="exportPdfBtn">📄 ดาวน์โหลด PDF</button>
+    </div>
+    <div class="ask-result-head" style="margin-bottom:18px;">
+      <h3 style="font-size:20px;">⚖️ ตารางอำนาจอนุมัติรวมทั้งเล่ม</h3>
+    </div>
+    <p class="prose" style="margin-bottom:18px;">
+      รวบรวมจากทุกหัวข้อในคู่มือที่มีข้อมูลอำนาจอนุมัติชัดเจน (${new Set(rows.map(r=>r.id)).size} หัวข้อ, ${rows.length} รายการ)
+      เรียงจากระดับตำแหน่งต่ำไปสูง — คลิกแถวเพื่อเปิดหัวข้อต้นทางดูรายละเอียดเพิ่มเติม
+    </p>
+    <table class="authority-table" style="font-size:15.5px;">
+      <thead><tr>
+        <th style="width:12%">อ้างอิง</th>
+        <th style="width:22%">ผู้มีอำนาจ</th>
+        <th style="width:18%">ประเภท</th>
+        <th style="width:30%">วงเงิน/ขอบเขต</th>
+        <th style="width:18%">มาจากหัวข้อ</th>
+      </tr></thead>
+      <tbody>
+        ${rows.map(r=>`
+          <tr class="matrix-row" data-id="${r.id}" style="cursor:pointer;">
+            <td><span class="reg-no">${r.source}</span></td>
+            <td><strong>${r.holder}</strong></td>
+            <td>${r.category}</td>
+            <td>${r.limit}${r.note?' <span style="color:var(--slate);font-size:13px;">('+r.note+')</span>':''}</td>
+            <td style="font-size:13.5px;color:var(--blue);">${r.title.length>30?r.title.slice(0,30)+'…':r.title}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+    <p class="prose" style="font-size:13px;color:var(--slate);margin-top:16px;">
+      หมายเหตุ: ตารางนี้ครอบคลุมเฉพาะหัวข้อที่มีการยืนยันข้อมูลอำนาจอนุมัติแบบมีโครงสร้างแล้ว
+      ยังมีอีกหลายหัวข้อในคู่มือที่มีข้อมูลอำนาจอยู่ในเนื้อหาแต่ยังไม่ได้จัดเป็นตาราง — ทยอยเพิ่มได้ในอนาคต
+    </p>
+  `;
+  matrixView.innerHTML = html;
+  window.__matrixRows = rows; // store for export functions
+  matrixView.querySelectorAll('.matrix-row').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      matrixViewOn = false;
+      normalLayout.style.display = 'grid';
+      matrixView.style.display = 'none';
+      matrixBtn.style.background = 'var(--purple)';
+      matrixBtn.textContent = '⚖️ ตารางอำนาจอนุมัติรวม';
+      manualSelectedId = el.dataset.id;
+      renderManualList();
+      renderManualDetail();
+      document.querySelector('#viewManual .main').scrollTop = 0;
+    });
+  });
+  document.getElementById('exportExcelBtn').addEventListener('click', exportMatrixExcel);
+  document.getElementById('exportPdfBtn').addEventListener('click', exportMatrixPDF);
+}
+
+function exportMatrixExcel(){
+  const rows = window.__matrixRows || [];
+  const sheetData = [
+    ['อ้างอิง', 'ผู้มีอำนาจ', 'ประเภท', 'วงเงิน/ขอบเขต', 'หมายเหตุ', 'มาจากหัวข้อ']
+  ];
+  rows.forEach(r=>{
+    sheetData.push([r.source, r.holder, r.category, r.limit, r.note, r.title]);
+  });
+  const ws = XLSX.utils.aoa_to_sheet(sheetData);
+  ws['!cols'] = [{wch:10},{wch:35},{wch:25},{wch:40},{wch:20},{wch:40}];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'ตารางอำนาจอนุมัติ');
+  XLSX.writeFile(wb, 'ตารางอำนาจอนุมัติรวม_คู่มือบริหารชุมชน.xlsx');
+}
+
+function exportMatrixPDF(){
+  window.print();
+}
 </script>
 </body>
 </html>
