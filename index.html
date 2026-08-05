@@ -134,6 +134,26 @@
   /* ===== Manual tab specifics ===== */
   .chapter-badge{display:inline-block;font-size:13px;font-weight:800;padding:3px 10px;border-radius:999px;background:var(--purple-bg);color:var(--purple);margin-bottom:6px;}
   .page-badge{font-family:'Courier New',monospace;font-size:14px;color:var(--slate);font-weight:700;}
+
+  /* ===== Criteria tab (tab 3) specifics ===== */
+  .doctype-badge{display:inline-block;font-size:12px;font-weight:800;padding:3px 10px;border-radius:999px;}
+  .doctype-badge.case_memo{background:var(--orange-bg);color:var(--orange);}
+  .doctype-badge.external_law{background:var(--red-bg);color:var(--red);}
+  .doctype-badge.specialized_manual{background:var(--blue-bg);color:var(--blue);}
+  .confidence-badge{display:inline-block;font-size:12px;font-weight:700;padding:3px 10px;border-radius:999px;}
+  .confidence-badge.confirmed{background:var(--green-bg);color:var(--green);}
+  .confidence-badge.partial{background:var(--orange-bg);color:var(--orange);}
+  .confidence-badge.pending{background:#EEE;color:var(--slate);}
+  .authority-basis-card{border:1.5px solid var(--purple);background:var(--purple-bg);border-radius:10px;padding:16px 18px;margin-bottom:10px;}
+  .authority-basis-card .ab-row{margin-bottom:8px;font-size:15px;line-height:1.6;}
+  .authority-basis-card .ab-row:last-child{margin-bottom:0;}
+  .authority-basis-card .ab-label{font-weight:800;color:var(--purple);display:inline-block;min-width:110px;}
+  .legal-ground-chip{display:inline-block;font-size:13.5px;padding:4px 12px;background:#fff;border:1.5px solid var(--purple);color:var(--purple);border-radius:999px;margin:2px 4px 2px 0;cursor:default;}
+  .legal-ground-chip.clickable{cursor:pointer;}
+  .legal-ground-chip.clickable:hover{background:var(--purple);color:#fff;}
+  .doc-viewer-btn{display:inline-flex;align-items:center;gap:6px;background:var(--ink);color:#fff;border:none;border-radius:8px;padding:9px 18px;font-size:14.5px;font-weight:700;font-family:inherit;cursor:pointer;margin-top:10px;}
+  .doc-viewer-btn:hover{background:#2E3A5C;}
+  .doc-viewer-frame{width:100%;height:650px;border:1.5px solid var(--line);border-radius:10px;margin-top:14px;}
   .sub-list{border:1.5px solid var(--line);border-radius:10px;overflow:hidden;margin-top:4px;}
   .sub-item{padding:9px 15px;border-bottom:1px solid var(--line);font-size:17px;color:var(--ink-soft);line-height:1.6;}
   .sub-item:last-child{border-bottom:none;}
@@ -152,6 +172,7 @@
 <div class="tab-bar">
   <button class="tab-btn active" id="tabBrowseBtn">📋 ระเบียบและข้อบังคับ</button>
   <button class="tab-btn" id="tabManualBtn">📘 คู่มือบริหารชุมชน</button>
+  <button class="tab-btn" id="tabCriteriaBtn">📚 หลักเกณฑ์เพิ่มเติม</button>
 </div>
 
 <div class="view active" id="viewBrowse">
@@ -213,6 +234,34 @@
 <div id="matrixView" style="display:none;padding:26px 36px 60px;">
 </div>
 </div><!-- /viewManual -->
+
+<div class="view" id="viewCriteria">
+<div class="control-panel">
+  <div class="stats-row" id="critStatsRow"></div>
+
+  <div class="search-clear-row">
+    <div class="search-wrap">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+      <input id="critSearchInput" type="text" placeholder="ค้นหาชื่อเรื่อง เลขที่โฉนด โครงการ...">
+    </div>
+    <button class="clear-btn" id="critClearBtn">✕ ล้างตัวกรอง</button>
+  </div>
+
+  <div class="cat-row" id="critTypeChips"></div>
+  <div class="active-filters" id="critActiveFilters"></div>
+</div>
+
+<div class="layout">
+  <aside class="sidebar">
+    <p class="count-line" id="critCountLine"></p>
+    <div id="critCardList"></div>
+  </aside>
+
+  <main class="main" id="critMainPanel">
+    <div class="loading-msg">กำลังโหลดข้อมูลหลักเกณฑ์เพิ่มเติม...</div>
+  </main>
+</div>
+</div><!-- /viewCriteria -->
 
 <script>
 // ---------- STATE ----------
@@ -518,18 +567,26 @@ document.getElementById('clearBtn').addEventListener('click', ()=>{
 // ---------- TABS ----------
 const tabBrowseBtn = document.getElementById('tabBrowseBtn');
 const tabManualBtn = document.getElementById('tabManualBtn');
+const tabCriteriaBtn = document.getElementById('tabCriteriaBtn');
 const viewBrowse = document.getElementById('viewBrowse');
 const viewManual = document.getElementById('viewManual');
+const viewCriteria = document.getElementById('viewCriteria');
 let manualLoaded = false;
+let criteriaLoaded = false;
 
-tabBrowseBtn.addEventListener('click', ()=>{
-  tabBrowseBtn.classList.add('active'); tabManualBtn.classList.remove('active');
-  viewBrowse.classList.add('active'); viewManual.classList.remove('active');
-});
-tabManualBtn.addEventListener('click', ()=>{
-  tabManualBtn.classList.add('active'); tabBrowseBtn.classList.remove('active');
-  viewManual.classList.add('active'); viewBrowse.classList.remove('active');
-  if(!manualLoaded){ loadManual(); }
+const allTabs = [
+  { btn: tabBrowseBtn, view: viewBrowse, onShow: null },
+  { btn: tabManualBtn, view: viewManual, onShow: ()=>{ if(!manualLoaded) loadManual(); } },
+  { btn: tabCriteriaBtn, view: viewCriteria, onShow: ()=>{ if(!criteriaLoaded) loadCriteria(); } }
+];
+allTabs.forEach(t=>{
+  t.btn.addEventListener('click', ()=>{
+    allTabs.forEach(o=>{
+      o.btn.classList.toggle('active', o===t);
+      o.view.classList.toggle('active', o===t);
+    });
+    if(t.onShow) t.onShow();
+  });
 });
 
 // ---------- MANUAL TAB: state ----------
@@ -946,6 +1003,263 @@ function exportMatrixExcel(){
 function exportMatrixPDF(){
   window.print();
 }
+
+// ================= CRITERIA TAB (tab 3) =================
+let CRIT_ITEMS = [];
+let CRIT_META = {};
+let critActiveType = "ทั้งหมด";
+let critSearchTerm = "";
+let critSelectedId = null;
+const DOCTYPE_LABEL = { external_law: "กฎหมายอ้างอิงภายนอก", specialized_manual: "คู่มือเฉพาะเรื่อง", case_memo: "บันทึกกรณีเฉพาะ" };
+const CONFIDENCE_LABEL = { confirmed: "✓ ยืนยันแล้ว", partial: "◐ ทราบบางส่วน", pending: "○ ยังไม่ได้อ่าน" };
+
+function loadCriteria(){
+  fetch('criteria.json')
+    .then(res => { if(!res.ok) throw new Error('HTTP ' + res.status); return res.json(); })
+    .then(data => {
+      CRIT_META = data.meta;
+      CRIT_ITEMS = data.items;
+      criteriaLoaded = true;
+      renderCritStats();
+      renderCritChips();
+      renderCritActiveFilters();
+      renderCritList();
+      renderCritInitialState();
+    })
+    .catch(err => {
+      document.getElementById('critMainPanel').innerHTML =
+        `<div class="error-msg">โหลด criteria.json ไม่สำเร็จ: ${err.message}<br>
+        ตรวจสอบว่าไฟล์ criteria.json อยู่โฟลเดอร์เดียวกับ index.html</div>`;
+    });
+}
+
+function renderCritStats(){
+  const total = CRIT_ITEMS.length;
+  const confirmed = CRIT_ITEMS.filter(i=>i.authority_basis && i.authority_basis.confidence==='confirmed').length;
+  const partial = CRIT_ITEMS.filter(i=>i.authority_basis && i.authority_basis.confidence==='partial').length;
+  const pending = CRIT_ITEMS.filter(i=>!i.authority_basis || i.authority_basis.confidence==='pending').length;
+  document.getElementById('critStatsRow').innerHTML = `
+    <div class="stat-box blue"><div class="num">${total}</div><div class="lbl">เอกสารทั้งหมด</div></div>
+    <div class="stat-box green"><div class="num">${confirmed}</div><div class="lbl">✓ ยืนยันแล้ว</div></div>
+    <div class="stat-box orange"><div class="num">${partial}</div><div class="lbl">◐ ทราบบางส่วน</div></div>
+    <div class="stat-box purple"><div class="num">${pending}</div><div class="lbl">○ ยังไม่ได้อ่าน</div></div>
+  `;
+}
+
+function renderCritChips(){
+  const types = ["ทั้งหมด", "case_memo", "external_law", "specialized_manual"];
+  const wrap = document.getElementById('critTypeChips');
+  wrap.innerHTML = types.map(t =>
+    `<button class="chip ${t===critActiveType?'active':''}" data-type="${t}">${t==='ทั้งหมด'?'ทั้งหมด':DOCTYPE_LABEL[t]}</button>`
+  ).join('');
+  wrap.querySelectorAll('.chip').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      critActiveType = el.dataset.type;
+      renderCritChips();
+      renderCritActiveFilters();
+      renderCritList();
+    });
+  });
+}
+
+function renderCritActiveFilters(){
+  const wrap = document.getElementById('critActiveFilters');
+  const pills = [];
+  if(critSearchTerm.trim()){
+    pills.push(`<span class="filter-pill p-search">ค้นหา: "${critSearchTerm}" <span class="x" data-clear="search">✕</span></span>`);
+  }
+  if(critActiveType !== "ทั้งหมด"){
+    pills.push(`<span class="filter-pill p-cat">ประเภท: ${DOCTYPE_LABEL[critActiveType]} <span class="x" data-clear="type">✕</span></span>`);
+  }
+  wrap.innerHTML = pills.length ? pills.join('') : `<span class="af-empty">ไม่มีตัวกรองที่ใช้งานอยู่</span>`;
+  wrap.querySelectorAll('.x').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      if(el.dataset.clear === 'search'){ critSearchTerm=''; document.getElementById('critSearchInput').value=''; }
+      else if(el.dataset.clear === 'type'){ critActiveType='ทั้งหมด'; }
+      renderCritChips(); renderCritActiveFilters(); renderCritList();
+    });
+  });
+}
+
+function critFilteredItems(){
+  return CRIT_ITEMS.filter(item=>{
+    const matchType = critActiveType === "ทั้งหมด" || item.doc_type === critActiveType;
+    const hay = (item.title + " " + (item.case_ref||"") + " " + (item.tags?item.tags.join(" "):"")).toLowerCase();
+    const matchSearch = hay.includes(critSearchTerm.toLowerCase());
+    return matchType && matchSearch;
+  });
+}
+
+function renderCritList(){
+  const items = critFilteredItems();
+  document.getElementById('critCountLine').textContent = `พบ ${items.length} รายการ`;
+  const list = document.getElementById('critCardList');
+  list.innerHTML = items.map(item => {
+    const conf = (item.authority_basis && item.authority_basis.confidence) || 'pending';
+    return `
+    <div class="reg-card ${item.id===critSelectedId?'selected':''}" data-id="${item.id}">
+      <div class="row1">
+        <span class="doctype-badge ${item.doc_type}">${DOCTYPE_LABEL[item.doc_type]||item.doc_type}</span>
+        <span class="confidence-badge ${conf}">${CONFIDENCE_LABEL[conf]}</span>
+      </div>
+      <div class="reg-title" style="margin-top:6px;">${item.title}</div>
+      <div class="reg-date">${item.date||''}${item.case_ref?' · '+item.case_ref:''}</div>
+    </div>
+  `;}).join('');
+  list.querySelectorAll('.reg-card').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      critSelectedId = el.dataset.id;
+      renderCritList();
+      renderCritDetail();
+    });
+  });
+}
+
+function renderCritDetail(){
+  const main = document.getElementById('critMainPanel');
+  const item = CRIT_ITEMS.find(i=>i.id===critSelectedId);
+  if(!item) return;
+  const ab = item.authority_basis || {};
+  const conf = ab.confidence || 'pending';
+
+  let html = `
+    <div class="detail-head">
+      <div class="badge-row">
+        <span class="doctype-badge ${item.doc_type}">${DOCTYPE_LABEL[item.doc_type]||item.doc_type}</span>
+        <span class="confidence-badge ${conf}">${CONFIDENCE_LABEL[conf]}</span>
+      </div>
+      <h2>${item.title}</h2>
+      <div class="detail-meta">${item.date?'วันที่ '+item.date+' · ':''}${item.case_ref?item.case_ref+' · ':''}
+        ${item.source_url ? `<a href="${item.source_url}" target="_blank" rel="noopener">เปิดต้นฉบับ (Google Drive) ↗</a>` : ''}
+      </div>
+    </div>
+  `;
+
+  // ---- Authority basis: ใคร / หลักอะไร / มติไหน ----
+  html += `
+    <div class="section-block">
+      <h3>สายโซ่อำนาจ (Authority Basis)</h3>
+      <div class="authority-basis-card">
+        <div class="ab-row"><span class="ab-label">ใครมีอำนาจ:</span> ${ab.decision_maker || '<em style="color:var(--slate);">ยังไม่ทราบแน่ชัด</em>'}</div>
+        <div class="ab-row"><span class="ab-label">อาศัยหลักอะไร:</span>
+          ${(ab.legal_grounds && ab.legal_grounds.length)
+            ? ab.legal_grounds.map(g=>`<span class="legal-ground-chip ${g.link_id?'clickable':''}" ${g.link_id?'data-link="'+g.link_id+'"':''}>${g.ref}</span>`).join('')
+            : '<em style="color:var(--slate);">ยังไม่ระบุ</em>'}
+        </div>
+        <div class="ab-row"><span class="ab-label">จากมติ/บันทึก:</span> ${ab.resolution_ref || '<em style="color:var(--slate);">ไม่มี/ยังไม่พบ</em>'}</div>
+      </div>
+    </div>
+  `;
+
+  if(item.case_ref || item.applies_to){
+    html += `<div class="section-block"><h3>ขอบเขตกรณีนี้</h3>`;
+    if(item.case_ref) html += `<p class="prose"><strong>อ้างอิงกรณี:</strong> ${item.case_ref}</p>`;
+    if(item.applies_to) html += `<p class="prose"><strong>ใช้เทียบเคียงได้กับ:</strong> ${item.applies_to}</p>`;
+    html += `</div>`;
+  }
+
+  if(item.content){
+    if(item.content.overview){
+      html += `<div class="section-block"><h3>ภาพรวม</h3><p class="prose">${item.content.overview}</p></div>`;
+    }
+    if(item.content.steps && item.content.steps.length){
+      html += `<div class="section-block"><h3>รายละเอียด</h3><div class="sub-list">`;
+      item.content.steps.forEach(s=>{
+        html += `<div class="sub-item"><strong style="color:var(--ink);">${s.title}</strong><br>${s.detail}</div>`;
+      });
+      html += `</div></div>`;
+    }
+  }
+
+  if(item.tags && item.tags.length){
+    html += `<div class="section-block"><h3>คำสำคัญ</h3><div class="tag-row">${item.tags.map(t=>`<span class="tag" data-tag="${t}">#${t}</span>`).join('')}</div></div>`;
+  }
+
+  if(item.related_regulation && item.related_regulation.length){
+    html += `<div class="section-block"><h3>เชื่อมโยงกับข้อบังคับ</h3>`;
+    item.related_regulation.forEach(rid=>{
+      html += `<button class="xlink-btn" data-xlink="${rid}">📋 เปิดฉบับที่เกี่ยวข้องในทะเบียนข้อบังคับ →</button>`;
+    });
+    html += `</div>`;
+  }
+
+  // ---- Embedded document viewer (ตามที่ขอ) ----
+  if(item.source_url){
+    const fileIdMatch = item.source_url.match(/\/d\/([^/]+)/);
+    const fileId = fileIdMatch ? fileIdMatch[1] : null;
+    if(fileId){
+      html += `
+        <div class="section-block">
+          <button class="doc-viewer-btn" id="toggleDocViewerBtn">📄 ดูเอกสารต้นฉบับประกอบ</button>
+          <div id="docViewerContainer" style="display:none;">
+            <iframe class="doc-viewer-frame" src="https://drive.google.com/file/d/${fileId}/preview"></iframe>
+          </div>
+        </div>
+      `;
+    }
+  }
+
+  main.innerHTML = html;
+
+  const toggleBtn = document.getElementById('toggleDocViewerBtn');
+  if(toggleBtn){
+    toggleBtn.addEventListener('click', ()=>{
+      const c = document.getElementById('docViewerContainer');
+      const showing = c.style.display !== 'none';
+      c.style.display = showing ? 'none' : 'block';
+      toggleBtn.textContent = showing ? '📄 ดูเอกสารต้นฉบับประกอบ' : '✕ ซ่อนเอกสารต้นฉบับ';
+    });
+  }
+
+  main.querySelectorAll('.legal-ground-chip.clickable').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      tabBrowseBtn.click();
+      selectedId = el.dataset.link;
+      renderList();
+      renderDetail();
+    });
+  });
+  main.querySelectorAll('.xlink-btn').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      tabBrowseBtn.click();
+      selectedId = el.dataset.xlink;
+      renderList();
+      renderDetail();
+    });
+  });
+  main.querySelectorAll('.tag').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const kw = el.dataset.tag;
+      critSearchTerm = kw;
+      document.getElementById('critSearchInput').value = kw;
+      critActiveType = 'ทั้งหมด';
+      renderCritChips(); renderCritActiveFilters(); renderCritList();
+    });
+  });
+}
+
+function renderCritInitialState(){
+  document.getElementById('critMainPanel').innerHTML = `
+    <div class="empty-state">
+      <div class="icon">📚</div>
+      <div>เลือกเอกสารทางซ้ายเพื่อดูรายละเอียด<br><span style="font-size:16.5px;">หลักเกณฑ์ กฎหมายอ้างอิง คู่มือเฉพาะเรื่อง และบันทึกกรณีเฉพาะ</span></div>
+    </div>
+  `;
+}
+
+document.getElementById('critSearchInput').addEventListener('input', (e)=>{
+  critSearchTerm = e.target.value;
+  renderCritActiveFilters();
+  renderCritList();
+});
+document.getElementById('critClearBtn').addEventListener('click', ()=>{
+  critSearchTerm = '';
+  critActiveType = 'ทั้งหมด';
+  document.getElementById('critSearchInput').value = '';
+  renderCritChips();
+  renderCritActiveFilters();
+  renderCritList();
+});
 </script>
 </body>
 </html>
