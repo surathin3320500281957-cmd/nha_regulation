@@ -113,7 +113,9 @@
   @media print{
     body *{visibility:hidden;}
     #matrixView, #matrixView *{visibility:visible;}
+    #procMatrixView, #procMatrixView *{visibility:visible;}
     #matrixView{position:absolute;top:0;left:0;width:100%;padding:10px !important;}
+    #procMatrixView{position:absolute;top:0;left:0;width:100%;padding:10px !important;}
     .matrix-export-row{display:none !important;}
     .topbar, .tab-bar, .control-panel{display:none !important;}
   }
@@ -249,13 +251,14 @@
       <input id="procSearchInput" type="text" placeholder="ค้นหาชื่อเรื่อง หมวด...">
     </div>
     <button class="clear-btn" id="procClearBtn">✕ ล้างตัวกรอง</button>
+    <button class="clear-btn" id="procMatrixToggleBtn" style="background:var(--purple);color:#fff;border-color:var(--purple);">⚖️ ตารางสรุปวงเงิน/อำนาจอนุมัติ</button>
   </div>
 
   <div class="cat-row" id="procChapterChips"></div>
   <div class="active-filters" id="procActiveFilters"></div>
 </div>
 
-<div class="layout">
+<div class="layout" id="procNormalLayout">
   <aside class="sidebar">
     <p class="count-line" id="procCountLine"></p>
     <div id="procCardList"></div>
@@ -264,6 +267,9 @@
   <main class="main" id="procMainPanel">
     <div class="loading-msg">กำลังโหลดข้อมูลคู่มือจัดซื้อจัดจ้าง...</div>
   </main>
+</div>
+
+<div id="procMatrixView" style="display:none;padding:26px 36px 60px;">
 </div>
 </div><!-- /viewProc -->
 
@@ -1111,6 +1117,84 @@ document.getElementById('procClearBtn').addEventListener('click', ()=>{
   renderProcActiveFilters();
   renderProcList();
 });
+
+// ---------- PROC SUMMARY MATRIX (วงเงิน/อำนาจอนุมัติ) ----------
+let procMatrixViewOn = false;
+const procMatrixBtn = document.getElementById('procMatrixToggleBtn');
+const procNormalLayout = document.getElementById('procNormalLayout');
+const procMatrixView = document.getElementById('procMatrixView');
+
+procMatrixBtn.addEventListener('click', ()=>{
+  procMatrixViewOn = !procMatrixViewOn;
+  if(procMatrixViewOn){
+    procNormalLayout.style.display = 'none';
+    procMatrixView.style.display = 'block';
+    procMatrixBtn.style.background = 'var(--ink)';
+    procMatrixBtn.textContent = '✕ ปิดตารางสรุป';
+    renderProcMatrixView();
+  } else {
+    procNormalLayout.style.display = 'grid';
+    procMatrixView.style.display = 'none';
+    procMatrixBtn.style.background = 'var(--purple)';
+    procMatrixBtn.textContent = '⚖️ ตารางสรุปวงเงิน/อำนาจอนุมัติ';
+  }
+});
+
+function renderProcMatrixView(){
+  const sv = PROC_META.summary_view;
+  if(!sv || !sv.tables || !sv.tables.length){
+    procMatrixView.innerHTML = `<div class="empty-state"><div class="icon">⚖️</div><div>ยังไม่มีข้อมูลตารางสรุปสำหรับคู่มือนี้</div></div>`;
+    return;
+  }
+
+  let html = `
+    <div class="matrix-export-row">
+      <button class="export-btn excel" id="procExportExcelBtn">📊 ดาวน์โหลด Excel (.xlsx)</button>
+      <button class="export-btn pdf" id="procExportPdfBtn">🖨️ พิมพ์ / บันทึกเป็น PDF</button>
+    </div>
+    <div class="ask-result-head" style="margin-bottom:12px;">
+      <h3 style="font-size:20px;">${sv.title||'⚖️ ตารางสรุป'}</h3>
+    </div>
+  `;
+
+  sv.tables.forEach(t=>{
+    html += `<div class="section-block">`;
+    if(t.title){ html += `<h3>${t.title}</h3>`; }
+    html += `<div class="table-scroll-wrap"><table class="authority-table"><thead><tr>`;
+    t.columns.forEach(col=>{ html += `<th>${col}</th>`; });
+    html += `</tr></thead><tbody>`;
+    (t.rows||[]).forEach(row=>{
+      html += `<tr>`;
+      row.forEach(cell=>{ html += `<td>${cell}</td>`; });
+      html += `</tr>`;
+    });
+    html += `</tbody></table></div>`;
+    if(t.footnote){ html += `<p class="prose" style="font-size:14.5px;color:var(--slate);margin-top:8px;">${t.footnote}</p>`; }
+    html += `</div>`;
+  });
+
+  procMatrixView.innerHTML = html;
+  window.__procMatrixTables = sv.tables;
+  document.getElementById('procExportExcelBtn').addEventListener('click', exportProcMatrixExcel);
+  document.getElementById('procExportPdfBtn').addEventListener('click', exportProcMatrixPDF);
+}
+
+function exportProcMatrixExcel(){
+  const tables = window.__procMatrixTables || [];
+  const wb = XLSX.utils.book_new();
+  tables.forEach((t, i)=>{
+    const sheetData = [t.columns, ...(t.rows||[])];
+    const ws = XLSX.utils.aoa_to_sheet(sheetData);
+    ws['!cols'] = t.columns.map(()=>({wch:28}));
+    const sheetName = (t.title ? t.title.slice(0,28) : 'ตาราง ' + (i+1)).replace(/[\\/*?\[\]:]/g,' ');
+    XLSX.utils.book_append_sheet(wb, ws, sheetName || ('ตาราง'+(i+1)));
+  });
+  XLSX.writeFile(wb, 'ตารางสรุปวงเงิน_อำนาจอนุมัติ_คู่มือจัดซื้อจัดจ้าง.xlsx');
+}
+
+function exportProcMatrixPDF(){
+  window.print();
+}
 
 // ---------- MASTER AUTHORITY MATRIX ----------
 let matrixViewOn = false;
