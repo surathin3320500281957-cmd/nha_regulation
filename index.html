@@ -87,10 +87,11 @@
   .section-block{margin-bottom:26px;}
   .section-block h3{font-size:16.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--purple);margin:0 0 10px;font-weight:800;}
   .prose{font-size:19px;line-height:1.75;color:var(--ink-soft);}
-  table.authority-table{width:100%;border-collapse:collapse;font-size:18px;margin-top:4px;border-radius:8px;overflow:hidden;}
-  table.authority-table th{text-align:left;background:var(--blue);color:#fff;padding:9px 12px;font-weight:700;font-size:16.5px;}
-  table.authority-table td{padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top;line-height:1.6;}
+  table.authority-table{width:100%;border-collapse:collapse;font-size:18px;margin-top:4px;border-radius:8px;overflow:hidden;table-layout:fixed;}
+  table.authority-table th{text-align:left;background:var(--blue);color:#fff;padding:9px 12px;font-weight:700;font-size:16.5px;word-break:break-word;overflow-wrap:break-word;}
+  table.authority-table td{padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top;line-height:1.6;word-break:break-word;overflow-wrap:break-word;}
   table.authority-table tr:nth-child(even) td{background:#F7F8FC;}
+  .table-scroll-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:8px;}
   .committee-card{border:1.5px solid var(--line);border-left:4px solid var(--green);border-radius:10px;padding:14px 16px;margin-bottom:10px;background:#fff;}
   .committee-card .name{font-weight:800;font-size:19px;margin-bottom:4px;color:var(--green);}
   .committee-card ul{margin:6px 0 0;padding-left:18px;font-size:18px;color:var(--ink-soft);line-height:1.6;}
@@ -1287,8 +1288,10 @@ function openCritDeepManual(itemId){
   critDeepItem = item;
   const firstSec = item.chapters[0].sections && item.chapters[0].sections[0];
   critDeepSectionId = firstSec ? firstSec.id : null;
-  // เปิดแท็บสรุปเป็นค่าเริ่มต้นถ้ามี summary_view — เห็นภาพรวมก่อนค่อยไล่อ่านทีละบท
-  critDeepShowSummary = !!(item.summary_view && item.summary_view.tables && item.summary_view.tables.length);
+  // ย้อนกลับไปเปิดหัวข้อแรกของบทที่ 1 เป็นค่าเริ่มต้น (ไม่เปิดแท็บสรุปอัตโนมัติแล้ว)
+  // เหตุผล: แท็บสรุปมีตารางกว้างสุด (4-5 คอลัมน์) เสี่ยงเจอปัญหาการแสดงผลบนมือถือมากที่สุด
+  // ผู้ใช้ยังกดเข้าแท็บสรุปเองได้ปกติจาก sidebar
+  critDeepShowSummary = false;
   critDeepOn = true;
   critNormalLayout.style.display = 'none';
   critDeepView.style.display = 'block';
@@ -1316,12 +1319,14 @@ function renderCritDeepTable(t){
   return `
     <div class="section-block">
       ${t.title?`<h3>${t.title}</h3>`:''}
+      <div class="table-scroll-wrap">
       <table class="authority-table">
         <thead><tr>${t.columns.map(c=>`<th>${c}</th>`).join('')}</tr></thead>
         <tbody>
           ${t.rows.map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('')}
         </tbody>
       </table>
+      </div>
       ${t.footnote?`<p class="prose" style="font-size:14px;color:var(--slate);margin-top:8px;">${t.footnote}</p>`:''}
     </div>
   `;
