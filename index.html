@@ -1387,8 +1387,8 @@ function renderCritDeepView(){
       <div class="detail-meta">${item.date?'วันที่ '+item.date+' · ':''}${item.source_url?`<a href="${item.source_url}" target="_blank" rel="noopener">เปิดต้นฉบับ (Google Drive) ↗</a>`:''}</div>
     </div>
     <div class="layout" style="min-height:calc(100vh - 300px);margin-top:16px;">
-      <aside class="sidebar" style="max-height:calc(100vh - 300px);">${sidebarHtml}</aside>
-      <main class="main" style="max-height:calc(100vh - 300px);">${mainHtml}</main>
+      <aside class="sidebar" style="max-height:none;overflow:visible;">${sidebarHtml}</aside>
+      <main class="main" style="max-height:none;overflow:visible;">${mainHtml}</main>
     </div>
   `;
 
