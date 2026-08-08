@@ -175,6 +175,7 @@
 <div class="tab-bar">
   <button class="tab-btn active" id="tabBrowseBtn">📋 ระเบียบและข้อบังคับ</button>
   <button class="tab-btn" id="tabManualBtn">📘 คู่มือบริหารชุมชน</button>
+  <button class="tab-btn" id="tabProcBtn">📦 คู่มือจัดซื้อจัดจ้าง</button>
   <button class="tab-btn" id="tabCriteriaBtn">📚 หลักเกณฑ์เพิ่มเติม</button>
 </div>
 
@@ -237,6 +238,34 @@
 <div id="matrixView" style="display:none;padding:26px 36px 60px;">
 </div>
 </div><!-- /viewManual -->
+
+<div class="view" id="viewProc">
+<div class="control-panel">
+  <div class="stats-row" id="procStatsRow"></div>
+
+  <div class="search-clear-row">
+    <div class="search-wrap">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+      <input id="procSearchInput" type="text" placeholder="ค้นหาชื่อเรื่อง หมวด...">
+    </div>
+    <button class="clear-btn" id="procClearBtn">✕ ล้างตัวกรอง</button>
+  </div>
+
+  <div class="cat-row" id="procChapterChips"></div>
+  <div class="active-filters" id="procActiveFilters"></div>
+</div>
+
+<div class="layout">
+  <aside class="sidebar">
+    <p class="count-line" id="procCountLine"></p>
+    <div id="procCardList"></div>
+  </aside>
+
+  <main class="main" id="procMainPanel">
+    <div class="loading-msg">กำลังโหลดข้อมูลคู่มือจัดซื้อจัดจ้าง...</div>
+  </main>
+</div>
+</div><!-- /viewProc -->
 
 <div class="view" id="viewCriteria">
 <div class="control-panel">
@@ -572,16 +601,20 @@ document.getElementById('clearBtn').addEventListener('click', ()=>{
 // ---------- TABS ----------
 const tabBrowseBtn = document.getElementById('tabBrowseBtn');
 const tabManualBtn = document.getElementById('tabManualBtn');
+const tabProcBtn = document.getElementById('tabProcBtn');
 const tabCriteriaBtn = document.getElementById('tabCriteriaBtn');
 const viewBrowse = document.getElementById('viewBrowse');
 const viewManual = document.getElementById('viewManual');
+const viewProc = document.getElementById('viewProc');
 const viewCriteria = document.getElementById('viewCriteria');
 let manualLoaded = false;
+let procLoaded = false;
 let criteriaLoaded = false;
 
 const allTabs = [
   { btn: tabBrowseBtn, view: viewBrowse, onShow: null },
   { btn: tabManualBtn, view: viewManual, onShow: ()=>{ if(!manualLoaded) loadManual(); } },
+  { btn: tabProcBtn, view: viewProc, onShow: ()=>{ if(!procLoaded) loadProc(); } },
   { btn: tabCriteriaBtn, view: viewCriteria, onShow: ()=>{ if(!criteriaLoaded) loadCriteria(); } }
 ];
 allTabs.forEach(t=>{
@@ -857,6 +890,226 @@ document.getElementById('manualClearBtn').addEventListener('click', ()=>{
   renderManualChips();
   renderManualActiveFilters();
   renderManualList();
+});
+
+// ---------- PROCUREMENT MANUAL TAB: state ----------
+let PROC_ITEMS = [];
+let PROC_META = {};
+let procActiveChapter = "ทั้งหมด";
+let procSearchTerm = "";
+let procSelectedId = null;
+let procChapters = ["ทั้งหมด"];
+
+function loadProc(){
+  fetch('procurement.json')
+    .then(res => { if(!res.ok) throw new Error('HTTP ' + res.status); return res.json(); })
+    .then(data => {
+      PROC_META = data.meta || {};
+      PROC_ITEMS = data.items || [];
+      procLoaded = true;
+      const chapterOrder = [...new Set(PROC_ITEMS.map(i=>i.chapter_title))];
+      procChapters = ["ทั้งหมด", ...chapterOrder];
+      renderProcStats();
+      renderProcChips();
+      renderProcActiveFilters();
+      renderProcList();
+      renderProcInitialState();
+    })
+    .catch(err => {
+      document.getElementById('procMainPanel').innerHTML =
+        `<div class="error-msg">โหลด procurement.json ไม่สำเร็จ: ${err.message}<br>
+        ตรวจสอบว่าไฟล์ procurement.json อยู่โฟลเดอร์เดียวกับ index.html</div>`;
+    });
+}
+
+function procHasTable(item){ return !!(item.content && item.content.table); }
+function procHasSteps(item){ return !!(item.content && item.content.steps && item.content.steps.length); }
+function procHasNote(item){ return !!(item.content && item.content.note_extra); }
+
+function renderProcStats(){
+  const total = PROC_ITEMS.length;
+  const withTable = PROC_ITEMS.filter(procHasTable).length;
+  const withNote = PROC_ITEMS.filter(procHasNote).length;
+  let html = `
+    <div class="stat-box blue"><div class="num">${total}</div><div class="lbl">หัวข้อทั้งหมด</div></div>
+    <div class="stat-box green"><div class="num">${procChapters.length-1}</div><div class="lbl">บททั้งหมด</div></div>
+    <div class="stat-box orange"><div class="num">${withTable}</div><div class="lbl">📊 มีตารางประกอบ</div></div>
+    <div class="stat-box purple"><div class="num">${withNote}</div><div class="lbl">📌 มีหมายเหตุพิเศษ</div></div>
+  `;
+  document.getElementById('procStatsRow').innerHTML = html;
+}
+
+function renderProcChips(){
+  const wrap = document.getElementById('procChapterChips');
+  wrap.innerHTML = procChapters.map(c =>
+    `<button class="chip ${c===procActiveChapter?'active':''}" data-ch="${c}">${c}</button>`
+  ).join('');
+  wrap.querySelectorAll('.chip').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      procActiveChapter = el.dataset.ch;
+      renderProcChips();
+      renderProcActiveFilters();
+      renderProcList();
+    });
+  });
+}
+
+function renderProcActiveFilters(){
+  const wrap = document.getElementById('procActiveFilters');
+  const pills = [];
+  if(procSearchTerm.trim()){
+    pills.push(`<span class="filter-pill p-search">ค้นหา: "${procSearchTerm}" <span class="x" data-clear="search">✕</span></span>`);
+  }
+  if(procActiveChapter !== "ทั้งหมด"){
+    pills.push(`<span class="filter-pill p-cat">บท: ${procActiveChapter} <span class="x" data-clear="ch">✕</span></span>`);
+  }
+  wrap.innerHTML = pills.length ? pills.join('') : `<span class="af-empty">ไม่มีตัวกรองที่ใช้งานอยู่</span>`;
+  wrap.querySelectorAll('.x').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      if(el.dataset.clear === 'search'){
+        procSearchTerm = '';
+        document.getElementById('procSearchInput').value = '';
+      } else if(el.dataset.clear === 'ch'){
+        procActiveChapter = 'ทั้งหมด';
+      }
+      renderProcChips();
+      renderProcActiveFilters();
+      renderProcList();
+    });
+  });
+}
+
+function procFilteredItems(){
+  return PROC_ITEMS.filter(item=>{
+    const matchCh = procActiveChapter === "ทั้งหมด" || item.chapter_title === procActiveChapter;
+    const hay = (item.title + " " + item.chapter_title).toLowerCase();
+    const matchSearch = hay.includes(procSearchTerm.toLowerCase());
+    return matchCh && matchSearch;
+  });
+}
+
+function renderProcList(){
+  const items = procFilteredItems();
+  document.getElementById('procCountLine').textContent = `พบ ${items.length} รายการ`;
+  const list = document.getElementById('procCardList');
+  list.innerHTML = items.map(item => `
+    <div class="reg-card ${item.id===procSelectedId?'selected':''}" data-id="${item.id}">
+      <div class="row1">
+        <span class="reg-no">บทที่ ${item.chapter_no} · ${item.section_no}</span>
+      </div>
+      <div class="reg-title">${item.title}</div>
+      <div class="row1" style="margin-top:5px;">
+        <span class="reg-date">${item.chapter_title}</span>
+        <span style="display:flex;gap:4px;">
+          ${procHasTable(item) ? '<span title="มีตารางประกอบ" style="font-size:13px;">📊</span>' : ''}
+          ${procHasSteps(item) ? '<span title="มีขั้นตอน" style="font-size:13px;">🔢</span>' : ''}
+          ${procHasNote(item) ? '<span title="มีหมายเหตุพิเศษ" style="font-size:13px;">📌</span>' : ''}
+        </span>
+      </div>
+    </div>
+  `).join('');
+  list.querySelectorAll('.reg-card').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      procSelectedId = el.dataset.id;
+      renderProcList();
+      renderProcDetail();
+      document.querySelector('#viewProc .main').scrollTop = 0;
+    });
+  });
+}
+
+function renderProcDetail(){
+  const main = document.getElementById('procMainPanel');
+  const item = PROC_ITEMS.find(i=>i.id===procSelectedId);
+  if(!item) return;
+
+  let html = `
+    <div class="detail-head">
+      <div class="chapter-badge">${item.chapter_title} · ส่วนที่ ${item.section_no}</div>
+      <h2>${item.title}</h2>
+      <div class="detail-meta">${PROC_META.title||''}
+        ${PROC_META.source_url ? ` · <a href="${PROC_META.source_url}" target="_blank" rel="noopener">เปิดต้นฉบับ (Google Drive) ↗</a>` : ''}
+      </div>
+    </div>
+  `;
+
+  const c = item.content || {};
+
+  if(c.overview){
+    html += `<div class="section-block"><h3>ภาพรวม</h3><p class="prose">${c.overview}</p></div>`;
+  }
+
+  if(c.table && c.table.columns){
+    html += `<div class="section-block"><h3>ตารางประกอบ</h3>`;
+    if(c.table.title){ html += `<p class="prose" style="font-size:16px;margin-bottom:8px;">${c.table.title}</p>`; }
+    html += `<div class="table-scroll-wrap"><table class="authority-table"><thead><tr>`;
+    c.table.columns.forEach(col=>{ html += `<th>${col}</th>`; });
+    html += `</tr></thead><tbody>`;
+    (c.table.rows||[]).forEach(row=>{
+      html += `<tr>`;
+      row.forEach(cell=>{ html += `<td>${cell}</td>`; });
+      html += `</tr>`;
+    });
+    html += `</tbody></table></div>`;
+    if(c.table.footnote){ html += `<p class="prose" style="font-size:14.5px;color:var(--slate);margin-top:8px;">${c.table.footnote}</p>`; }
+    html += `</div>`;
+  }
+
+  if(c.tables && c.tables.length){
+    c.tables.forEach(t=>{
+      html += `<div class="section-block">`;
+      if(t.title){ html += `<h3>${t.title}</h3>`; }
+      html += `<div class="table-scroll-wrap"><table class="authority-table"><thead><tr>`;
+      t.columns.forEach(col=>{ html += `<th>${col}</th>`; });
+      html += `</tr></thead><tbody>`;
+      (t.rows||[]).forEach(row=>{
+        html += `<tr>`;
+        row.forEach(cell=>{ html += `<td>${cell}</td>`; });
+        html += `</tr>`;
+      });
+      html += `</tbody></table></div>`;
+      if(t.footnote){ html += `<p class="prose" style="font-size:14.5px;color:var(--slate);margin-top:8px;">${t.footnote}</p>`; }
+      html += `</div>`;
+    });
+  }
+
+  if(c.steps && c.steps.length){
+    html += `<div class="section-block"><h3>ขั้นตอน</h3><div class="sub-list">`;
+    c.steps.forEach(s=>{
+      html += `<div class="sub-item"><strong style="color:var(--ink);">${s.title}</strong><br>${s.detail}</div>`;
+    });
+    html += `</div></div>`;
+  }
+
+  if(c.note_extra){
+    html += `<div class="manual-note"><strong>หมายเหตุเพิ่มเติม:</strong> ${c.note_extra}</div>`;
+  }
+
+  main.innerHTML = html;
+}
+
+function renderProcInitialState(){
+  const main = document.getElementById('procMainPanel');
+  main.innerHTML = `
+    <div class="empty-state">
+      <div class="icon">📦</div>
+      <div>เลือกหัวข้อทางซ้ายเพื่อดูรายละเอียด<br><span style="font-size:16.5px;">คู่มือการจัดซื้อจัดจ้างและการบริหารพัสดุ (ฉบับปรับปรุง ครั้งที่ 2)</span></div>
+    </div>
+  `;
+}
+
+document.getElementById('procSearchInput').addEventListener('input', (e)=>{
+  procSearchTerm = e.target.value;
+  renderProcActiveFilters();
+  renderProcList();
+});
+document.getElementById('procClearBtn').addEventListener('click', ()=>{
+  procSearchTerm = '';
+  procActiveChapter = 'ทั้งหมด';
+  document.getElementById('procSearchInput').value = '';
+  renderProcChips();
+  renderProcActiveFilters();
+  renderProcList();
 });
 
 // ---------- MASTER AUTHORITY MATRIX ----------
