@@ -905,6 +905,7 @@ let procActiveChapter = "ทั้งหมด";
 let procSearchTerm = "";
 let procSelectedId = null;
 let procChapters = ["ทั้งหมด"];
+let procSpecialFilter = "none"; // 'none' | 'table' | 'notes'
 
 function loadProc(){
   fetch('procurement.json')
@@ -939,10 +940,19 @@ function renderProcStats(){
   let html = `
     <div class="stat-box blue"><div class="num">${total}</div><div class="lbl">หัวข้อทั้งหมด</div></div>
     <div class="stat-box green"><div class="num">${procChapters.length-1}</div><div class="lbl">บททั้งหมด</div></div>
-    <div class="stat-box orange"><div class="num">${withTable}</div><div class="lbl">📊 มีตารางประกอบ</div></div>
-    <div class="stat-box purple"><div class="num">${withNote}</div><div class="lbl">📌 มีหมายเหตุพิเศษ</div></div>
+    <div class="stat-box orange clickable ${procSpecialFilter==='table'?'is-active':''}" data-special="table"><div class="num">${withTable}</div><div class="lbl">📊 มีตารางประกอบ</div></div>
+    <div class="stat-box purple clickable ${procSpecialFilter==='notes'?'is-active':''}" data-special="notes"><div class="num">${withNote}</div><div class="lbl">📌 มีหมายเหตุพิเศษ</div></div>
   `;
   document.getElementById('procStatsRow').innerHTML = html;
+  document.querySelectorAll('#procStatsRow .stat-box.clickable').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const val = el.dataset.special;
+      procSpecialFilter = (procSpecialFilter === val) ? 'none' : val;
+      renderProcStats();
+      renderProcActiveFilters();
+      renderProcList();
+    });
+  });
 }
 
 function renderProcChips(){
@@ -969,6 +979,12 @@ function renderProcActiveFilters(){
   if(procActiveChapter !== "ทั้งหมด"){
     pills.push(`<span class="filter-pill p-cat">บท: ${procActiveChapter} <span class="x" data-clear="ch">✕</span></span>`);
   }
+  if(procSpecialFilter === 'table'){
+    pills.push(`<span class="filter-pill" style="background:var(--orange);">📊 เฉพาะที่มีตารางประกอบ <span class="x" data-clear="special">✕</span></span>`);
+  }
+  if(procSpecialFilter === 'notes'){
+    pills.push(`<span class="filter-pill" style="background:var(--purple);">📌 เฉพาะที่มีหมายเหตุพิเศษ <span class="x" data-clear="special">✕</span></span>`);
+  }
   wrap.innerHTML = pills.length ? pills.join('') : `<span class="af-empty">ไม่มีตัวกรองที่ใช้งานอยู่</span>`;
   wrap.querySelectorAll('.x').forEach(el=>{
     el.addEventListener('click', ()=>{
@@ -977,7 +993,10 @@ function renderProcActiveFilters(){
         document.getElementById('procSearchInput').value = '';
       } else if(el.dataset.clear === 'ch'){
         procActiveChapter = 'ทั้งหมด';
+      } else if(el.dataset.clear === 'special'){
+        procSpecialFilter = 'none';
       }
+      renderProcStats();
       renderProcChips();
       renderProcActiveFilters();
       renderProcList();
@@ -990,7 +1009,10 @@ function procFilteredItems(){
     const matchCh = procActiveChapter === "ทั้งหมด" || item.chapter_title === procActiveChapter;
     const hay = (item.title + " " + item.chapter_title).toLowerCase();
     const matchSearch = hay.includes(procSearchTerm.toLowerCase());
-    return matchCh && matchSearch;
+    const matchSpecial = procSpecialFilter === 'none'
+      || (procSpecialFilter === 'table' && procHasTable(item))
+      || (procSpecialFilter === 'notes' && procHasNote(item));
+    return matchCh && matchSearch && matchSpecial;
   });
 }
 
@@ -1112,7 +1134,9 @@ document.getElementById('procSearchInput').addEventListener('input', (e)=>{
 document.getElementById('procClearBtn').addEventListener('click', ()=>{
   procSearchTerm = '';
   procActiveChapter = 'ทั้งหมด';
+  procSpecialFilter = 'none';
   document.getElementById('procSearchInput').value = '';
+  renderProcStats();
   renderProcChips();
   renderProcActiveFilters();
   renderProcList();
