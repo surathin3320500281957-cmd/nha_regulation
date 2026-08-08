@@ -87,11 +87,10 @@
   .section-block{margin-bottom:26px;}
   .section-block h3{font-size:16.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--purple);margin:0 0 10px;font-weight:800;}
   .prose{font-size:19px;line-height:1.75;color:var(--ink-soft);}
-  table.authority-table{width:100%;border-collapse:collapse;font-size:18px;margin-top:4px;border-radius:8px;overflow:hidden;table-layout:fixed;}
-  table.authority-table th{text-align:left;background:var(--blue);color:#fff;padding:9px 12px;font-weight:700;font-size:16.5px;word-break:break-word;overflow-wrap:break-word;}
-  table.authority-table td{padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top;line-height:1.6;word-break:break-word;overflow-wrap:break-word;}
+  table.authority-table{width:100%;border-collapse:collapse;font-size:18px;margin-top:4px;border-radius:8px;overflow:hidden;}
+  table.authority-table th{text-align:left;background:var(--blue);color:#fff;padding:9px 12px;font-weight:700;font-size:16.5px;}
+  table.authority-table td{padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top;line-height:1.6;}
   table.authority-table tr:nth-child(even) td{background:#F7F8FC;}
-  .table-scroll-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:8px;}
   .committee-card{border:1.5px solid var(--line);border-left:4px solid var(--green);border-radius:10px;padding:14px 16px;margin-bottom:10px;background:#fff;}
   .committee-card .name{font-weight:800;font-size:19px;margin-bottom:4px;color:var(--green);}
   .committee-card ul{margin:6px 0 0;padding-left:18px;font-size:18px;color:var(--ink-soft);line-height:1.6;}
@@ -161,8 +160,6 @@
   .manual-note{border:1.5px solid var(--blue);background:var(--blue-bg);border-radius:10px;padding:14px 18px;font-size:17px;color:var(--ink-soft);line-height:1.7;margin-top:10px;}
   .xlink-btn{display:inline-flex;align-items:center;gap:6px;background:var(--green);color:#fff;border:none;border-radius:999px;padding:8px 16px;font-size:15.5px;font-weight:700;font-family:inherit;cursor:pointer;margin-top:8px;margin-right:8px;}
   .xlink-btn:hover{background:#128038;}
-  .reg-card.deep-manual-card{border-left-color:var(--blue);}
-  .reg-card.deep-manual-card:hover{border-left-color:var(--blue);}
 </style>
 </head>
 <body>
@@ -264,8 +261,6 @@
     <div class="loading-msg">กำลังโหลดข้อมูลหลักเกณฑ์เพิ่มเติม...</div>
   </main>
 </div>
-
-<div id="critDeepView" style="display:none;padding:26px 36px 60px;"></div>
 </div><!-- /viewCriteria -->
 
 <script>
@@ -1102,26 +1097,20 @@ function renderCritList(){
   list.innerHTML = items.map(item => {
     const conf = (item.authority_basis && item.authority_basis.confidence) || 'pending';
     return `
-    <div class="reg-card ${item.id===critSelectedId?'selected':''} ${item.is_deep_manual?'deep-manual-card':''}" data-id="${item.id}">
+    <div class="reg-card ${item.id===critSelectedId?'selected':''}" data-id="${item.id}">
       <div class="row1">
-        <span class="doctype-badge ${item.doc_type}">${item.is_deep_manual?'📖 ':''}${DOCTYPE_LABEL[item.doc_type]||item.doc_type}</span>
+        <span class="doctype-badge ${item.doc_type}">${DOCTYPE_LABEL[item.doc_type]||item.doc_type}</span>
         <span class="confidence-badge ${conf}">${CONFIDENCE_LABEL[conf]}</span>
       </div>
       <div class="reg-title" style="margin-top:6px;">${item.title}</div>
       <div class="reg-date">${item.date||''}${item.case_ref?' · '+item.case_ref:''}</div>
-      ${item.is_deep_manual?'<div style="font-size:13.5px;color:var(--blue);font-weight:700;margin-top:4px;">📖 คู่มือเชิงลึก — คลิกเพื่อเปิดอ่านแบบเต็ม</div>':''}
     </div>
   `;}).join('');
   list.querySelectorAll('.reg-card').forEach(el=>{
     el.addEventListener('click', ()=>{
       critSelectedId = el.dataset.id;
-      const item = CRIT_ITEMS.find(i=>i.id===critSelectedId);
       renderCritList();
-      if(item && item.is_deep_manual && item.chapters && item.chapters.length){
-        openCritDeepManual(critSelectedId);
-      } else {
-        renderCritDetail();
-      }
+      renderCritDetail();
     });
   });
 }
@@ -1271,152 +1260,6 @@ document.getElementById('critClearBtn').addEventListener('click', ()=>{
   renderCritActiveFilters();
   renderCritList();
 });
-
-// ---------- CRITERIA TAB: DEEP MANUAL NESTED VIEW ----------
-// สำหรับ item ที่ is_deep_manual===true และมี chapters[] — เปิดเต็มพื้นที่คล้าย tab คู่มือบริหารชุมชน
-// โครงสร้างนี้ generic ตาม chapters[]/sections[] — ใช้ซ้ำได้กับคู่มือเชิงลึกเล่มถัดๆ ไปโดยไม่ต้องแก้โค้ดนี้อีก
-let critDeepOn = false;
-let critDeepItem = null;
-let critDeepSectionId = null;
-let critDeepShowSummary = false;
-const critDeepView = document.getElementById('critDeepView');
-const critNormalLayout = document.querySelector('#viewCriteria .layout');
-
-function openCritDeepManual(itemId){
-  const item = CRIT_ITEMS.find(i=>i.id===itemId);
-  if(!item || !item.chapters || !item.chapters.length) return;
-  critDeepItem = item;
-  const firstSec = item.chapters[0].sections && item.chapters[0].sections[0];
-  critDeepSectionId = firstSec ? firstSec.id : null;
-  // ย้อนกลับไปเปิดหัวข้อแรกของบทที่ 1 เป็นค่าเริ่มต้น (ไม่เปิดแท็บสรุปอัตโนมัติแล้ว)
-  // เหตุผล: แท็บสรุปมีตารางกว้างสุด (4-5 คอลัมน์) เสี่ยงเจอปัญหาการแสดงผลบนมือถือมากที่สุด
-  // ผู้ใช้ยังกดเข้าแท็บสรุปเองได้ปกติจาก sidebar
-  critDeepShowSummary = false;
-  critDeepOn = true;
-  critNormalLayout.style.display = 'none';
-  critDeepView.style.display = 'block';
-  renderCritDeepView();
-  critDeepView.scrollTop = 0;
-}
-
-function closeCritDeepManual(){
-  critDeepOn = false;
-  critDeepItem = null;
-  critDeepView.style.display = 'none';
-  critNormalLayout.style.display = 'grid';
-}
-
-function critDeepFindSection(){
-  if(!critDeepItem) return null;
-  for(const ch of critDeepItem.chapters){
-    const found = (ch.sections||[]).find(s=>s.id===critDeepSectionId);
-    if(found) return found;
-  }
-  return null;
-}
-
-function renderCritDeepTable(t){
-  return `
-    <div class="section-block">
-      ${t.title?`<h3>${t.title}</h3>`:''}
-      <div class="table-scroll-wrap">
-      <table class="authority-table">
-        <thead><tr>${t.columns.map(c=>`<th>${c}</th>`).join('')}</tr></thead>
-        <tbody>
-          ${t.rows.map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('')}
-        </tbody>
-      </table>
-      </div>
-      ${t.footnote?`<p class="prose" style="font-size:14px;color:var(--slate);margin-top:8px;">${t.footnote}</p>`:''}
-    </div>
-  `;
-}
-
-function renderCritDeepView(){
-  const item = critDeepItem;
-  if(!item) return;
-
-  // ---- sidebar: ปุ่มกลับ + (ถ้ามี) แท็บสรุป + รายการบท/หัวข้อ ----
-  let sidebarHtml = `<button class="clear-btn" id="critDeepBackBtn" style="width:100%;margin-bottom:14px;">← กลับไปหลักเกณฑ์เพิ่มเติม</button>`;
-
-  if(item.summary_view && item.summary_view.tables && item.summary_view.tables.length){
-    sidebarHtml += `
-      <div class="reg-card ${critDeepShowSummary?'selected':''}" data-summary="1" style="border-left-color:var(--purple);">
-        <div class="reg-title">📊 ${item.summary_view.title||'สรุปภาพรวม'}</div>
-      </div>`;
-  }
-
-  item.chapters.forEach((ch,ci)=>{
-    sidebarHtml += `<div style="font-size:13px;font-weight:800;color:var(--purple);text-transform:uppercase;letter-spacing:.06em;margin:16px 2px 6px;">บทที่ ${ci+1} · ${ch.chapter_title}</div>`;
-    (ch.sections||[]).forEach(sec=>{
-      const active = !critDeepShowSummary && sec.id === critDeepSectionId;
-      sidebarHtml += `
-        <div class="reg-card ${active?'selected':''}" data-sec="${sec.id}">
-          <div class="reg-title" style="font-size:16.5px;">${sec.title}</div>
-        </div>`;
-    });
-  });
-
-  // ---- main content: แท็บสรุป หรือ เนื้อหา section ที่เลือก ----
-  let mainHtml = '';
-  if(critDeepShowSummary && item.summary_view){
-    mainHtml += `<div class="detail-head"><h2>${item.summary_view.title||'สรุปภาพรวม'}</h2><div class="detail-meta">${item.title}</div></div>`;
-    (item.summary_view.tables||[]).forEach(t=>{ mainHtml += renderCritDeepTable(t); });
-  } else {
-    const sec = critDeepFindSection();
-    if(sec){
-      mainHtml += `<div class="detail-head"><h2>${sec.title}</h2><div class="detail-meta">${item.title}</div></div>`;
-      const c = sec.content || {};
-      if(c.overview) mainHtml += `<div class="section-block"><h3>ภาพรวม</h3><p class="prose">${c.overview}</p></div>`;
-      if(c.table) mainHtml += renderCritDeepTable(c.table);
-      if(c.steps && c.steps.length){
-        mainHtml += `<div class="section-block"><h3>รายละเอียด</h3><div class="sub-list">`;
-        c.steps.forEach(s=>{
-          mainHtml += `<div class="sub-item"><strong style="color:var(--ink);">${s.title}</strong><br>${s.detail}</div>`;
-        });
-        mainHtml += `</div></div>`;
-      }
-      if(c.note_extra) mainHtml += `<div class="manual-note"><strong>หมายเหตุเพิ่มเติม:</strong> ${c.note_extra}</div>`;
-    } else {
-      mainHtml = `<div class="empty-state"><div class="icon">📖</div><div>เลือกหัวข้อทางซ้ายเพื่อดูรายละเอียด</div></div>`;
-    }
-  }
-
-  critDeepView.innerHTML = `
-    <div class="detail-head" style="border-bottom:3px solid var(--blue);padding-bottom:14px;margin-bottom:0;">
-      <div class="badge-row">
-        <span class="doctype-badge ${item.doc_type}">📖 คู่มือเชิงลึก</span>
-        ${item.authority_basis && item.authority_basis.confidence ? `<span class="confidence-badge ${item.authority_basis.confidence}">${CONFIDENCE_LABEL[item.authority_basis.confidence]}</span>` : ''}
-      </div>
-      <h2 style="margin-top:6px;">${item.title}</h2>
-      <div class="detail-meta">${item.date?'วันที่ '+item.date+' · ':''}${item.source_url?`<a href="${item.source_url}" target="_blank" rel="noopener">เปิดต้นฉบับ (Google Drive) ↗</a>`:''}</div>
-    </div>
-    <div class="layout" style="min-height:calc(100vh - 300px);margin-top:16px;">
-      <aside class="sidebar" style="max-height:none;overflow:visible;">${sidebarHtml}</aside>
-      <main class="main" style="max-height:none;overflow:visible;">${mainHtml}</main>
-    </div>
-  `;
-
-  document.getElementById('critDeepBackBtn').addEventListener('click', closeCritDeepManual);
-  critDeepView.querySelectorAll('[data-sec]').forEach(el=>{
-    el.addEventListener('click', ()=>{
-      critDeepShowSummary = false;
-      critDeepSectionId = el.dataset.sec;
-      renderCritDeepView();
-      const m = critDeepView.querySelector('.main');
-      if(m) m.scrollTop = 0;
-    });
-  });
-  const summaryEl = critDeepView.querySelector('[data-summary]');
-  if(summaryEl){
-    summaryEl.addEventListener('click', ()=>{
-      critDeepShowSummary = true;
-      renderCritDeepView();
-      const m = critDeepView.querySelector('.main');
-      if(m) m.scrollTop = 0;
-    });
-  }
-}
 </script>
 </body>
 </html>
